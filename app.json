@@ -19,7 +19,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.rai_vivek9900.GeoSphere"
     },
     "web": {
       "favicon": "./assets/favicon.png"
