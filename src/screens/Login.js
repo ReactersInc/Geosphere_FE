@@ -11,32 +11,61 @@ import {
   ImageBackground,
   Alert,
 } from 'react-native';
-import { StackActions } from '@react-navigation/native';
+import { CommonActions, StackActions } from '@react-navigation/native';
 import { RFPercentage, RFValue } from 'react-native-responsive-fontsize';
-import { useUser } from '../contexts/UserContext';
+import CustomText from '../component/CustomText';
+import { useUser } from '../context/userContext';
+import { UseApi } from '../hooks/UseApi';
+import { LoadingContext } from '../context/LoadingProvider';
+import { jwtDecode } from 'jwt-decode';
+
 
 const { width, height } = Dimensions.get('window');
 
 const Login = ({ navigation }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('bitturai9900123@gmail.com');
+  const [password, setPassword] = useState('1234');
   const [showPassword, setShowPassword] = useState(false);
-  const { login, isLoading } = useUser();
+  
+  const {login} = useUser();
+  const { get, post } = UseApi();
+  const { loading } = useContext(LoadingContext);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please enter both email and password');
-      return;
+    try {
+      const response = await post('http://192.168.1.41:8080/login', { email, password });
+      console.log("respone is : ", response);
+      const {userId, firstName, lastName,  sub } = jwtDecode(response.token);
+      console.log("userId is : ", userId, firstName, lastName, sub);
+      const userData = {
+        userId: userId,
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        
+      };
+      console.log("user data is : ", userData);
+
+      login(userData, response.token);
+
+      if (response) {
+      
+      // console.log("user data is :  ", data);
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'HomeScreen' }],
+        })
+      );
+      } else {
+      Alert.alert('Login Failed', 'Invalid email or password');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Something went wrong. Please try again later.');
     }
 
-    try {
-      await login(email, password);
-      navigation.dispatch(StackActions.replace('AppStack'));
-      setEmail('');
-      setPassword('');
-    } catch (error) {
-      Alert.alert('Error', error.message || 'Failed to login');
-    }
+
+    
   };
 
   return (
@@ -52,10 +81,10 @@ const Login = ({ navigation }) => {
       </ImageBackground>
 
       <View style={styles.container}>
-        <Text style={styles.welcomeText}>Welcome back</Text>
-        <Text style={styles.signInText}>sign in to your account</Text>
+        <CustomText style={styles.welcomeText}>Welcome back</CustomText>
+        <CustomText style={styles.signInText}>sign in to your account</CustomText>
 
-        <Text style={styles.textTitle}>Email</Text>
+        <CustomText style={styles.CustomTextTitle}>Email</CustomText>
         <TextInput
           style={styles.input}
           placeholder="Email"
@@ -64,7 +93,7 @@ const Login = ({ navigation }) => {
           value={email}
           onChangeText={setEmail}
         />
-        <Text style={styles.textTitle}>Password</Text>
+        <CustomText style={styles.textTitle}>Password</CustomText>
         <View style={styles.passwordContainer}>
           <TextInput
             style={styles.passInput}
@@ -91,23 +120,23 @@ const Login = ({ navigation }) => {
           style={styles.forgotPassword}
           onPress={() => navigation.navigate('ForgotPassword')}
         >
-          <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+          <CustomText style={styles.forgotPasswordText}>Forgot Password?</CustomText>
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={[styles.loginButton, isLoading && styles.disabledButton]} 
+          style={[styles.loginButton, loading && styles.disabledButton]} 
           onPress={handleLogin}
-          disabled={isLoading}
+          disabled={loading}
         >
-          <Text style={styles.loginButtonText}>
-            {isLoading ? 'Logging in...' : 'Login'}
-          </Text>
+          <CustomText style={styles.loginButtonText}>
+            {loading ? 'Logging in...' : 'Login'}
+          </CustomText>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-          <Text style={styles.createAccountText}>
+          <CustomText style={styles.createAccountText}>
             Don't have an account? Create Now
-          </Text>
+          </CustomText>
         </TouchableOpacity>
       </View>
     </View>

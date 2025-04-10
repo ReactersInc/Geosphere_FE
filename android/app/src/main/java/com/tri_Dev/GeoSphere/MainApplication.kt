@@ -1,4 +1,4 @@
-package com.rai_vivek9900.GeoSphere
+package com.tri_Dev.GeoSphere
 
 import android.app.Application
 import android.content.res.Configuration

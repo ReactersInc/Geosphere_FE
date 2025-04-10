@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
+  
   StyleSheet,
   TouchableOpacity,
   TextInput,
@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { RFValue } from 'react-native-responsive-fontsize';
+import CustomText from '../component/CustomText';
 import { launchImageLibrary } from 'react-native-image-picker';
 const { width, height } = Dimensions.get('window');
 
@@ -44,6 +45,7 @@ const RegisterScreen = ({ navigation }) => {
   };
 
   const handleSendOtp = async () => {
+    console.log("hello 1");
     if (!first_name || !last_name || !email || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill all the fields');
       return;
@@ -62,27 +64,35 @@ const RegisterScreen = ({ navigation }) => {
       return;
     }
 
+    const payload = {
+      email: email,
+      u_pass: password,
+      f_name: first_name,
+      l_name: last_name,
+      photo: photoName,
+    };
+
     setIsLoading(true);
     try {
       const response = await fetch(
-        'https://makemytwin.com/IoMTAppAPI//api/addGeoUser.php',
+        'http://192.168.1.18:8080/auth/register-user',
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            email,
-            u_pass: password,
-            f_name: first_name,
-            l_name: last_name,
-            photo: "https://gratisography.com/wp-content/uploads/2024/01/gratisography-cyber-kitty-800x525.jpg",
-            category: 0,
-          }),
+          body: JSON.stringify(payload),
         }
       );
 
       const data = await response.json();
+
+      console.log(data);
+
+      // if(response.status !== 201) {
+      //   Alert.alert('Error', data.message || 'Something went wrong');
+      //   return;
+      // }
 
       if (data.status === 'success') {
         setShowVerify(true);
@@ -91,6 +101,7 @@ const RegisterScreen = ({ navigation }) => {
         Alert.alert('Error', data.message || 'Something went wrong');
       }
     } catch (error) {
+      console.error(error);
       Alert.alert('Error', 'Failed to send OTP');
     } finally {
       setIsLoading(false);
@@ -170,10 +181,10 @@ const RegisterScreen = ({ navigation }) => {
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.welcomeText}>Create Your Account</Text>
-        <Text style={styles.signInText}>Sign up to manage your geofences</Text>
+        <CustomText style={styles.welcomeText}>Create Your Account</CustomText>
+        <CustomText style={styles.signInText}>Sign up to manage your geofences</CustomText>
 
-        <Text style={styles.textTitle}>First Name</Text>
+        <CustomText style={styles.textTitle}>First Name</CustomText>
         <TextInput
           style={styles.input}
           placeholder="First Name"
@@ -182,7 +193,7 @@ const RegisterScreen = ({ navigation }) => {
           value={first_name}
         />
 
-        <Text style={styles.textTitle}>Last Name</Text>
+        <CustomText style={styles.textTitle}>Last Name</CustomText>
         <TextInput
           style={styles.input}
           placeholder="Last Name"
@@ -191,7 +202,7 @@ const RegisterScreen = ({ navigation }) => {
           value={last_name}
         />
 
-        <Text style={styles.textTitle}>Email</Text>
+        <CustomText style={styles.textTitle}>Email</CustomText>
         <TextInput
           style={styles.input}
           placeholder="Email"
@@ -201,7 +212,7 @@ const RegisterScreen = ({ navigation }) => {
           value={email}
         />
 
-        <Text style={styles.textTitle}>Password</Text>
+        <CustomText style={styles.textTitle}>Password</CustomText>
         <View style={styles.passwordContainer}>
           <TextInput
             style={styles.passInput}
@@ -218,14 +229,14 @@ const RegisterScreen = ({ navigation }) => {
               style={{ height: RFValue(18), width: RFValue(18) }}
               source={
                 showPassword
-                  ? require('../assets/icons/visible.png')
-                  : require('../assets/icons/invisible.png')
+                  ? require('../../assets/icons/visible.png')
+                  : require('../../assets/icons/invisible.png')
               }
             />
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.textTitle}>Confirm Password</Text>
+        <CustomText style={styles.textTitle}>Confirm Password</CustomText>
         <View style={styles.passwordContainer}>
           <TextInput
             style={styles.passInput}
@@ -242,8 +253,8 @@ const RegisterScreen = ({ navigation }) => {
               style={{ height: RFValue(18), width: RFValue(18) }}
               source={
                 showConfirmPassword
-                  ? require('../assets/icons/visible.png')
-                  : require('../assets/icons/invisible.png')
+                  ? require('../../assets/icons/visible.png')
+                  : require('../../assets/icons/invisible.png')
               }
             />
           </TouchableOpacity>
@@ -251,7 +262,7 @@ const RegisterScreen = ({ navigation }) => {
 
         {showVerify && (
           <View>
-            <Text style={styles.textTitle}>OTP</Text>
+            <CustomText style={styles.textTitle}>OTP</CustomText>
             <TextInput
               style={styles.input}
               placeholder="OTP"
@@ -264,18 +275,18 @@ const RegisterScreen = ({ navigation }) => {
               onPress={handleResendOtp}
               disabled={isLoading}
             >
-              <Text style={styles.loginButtonText}>
+              <CustomText style={styles.loginButtonText}>
                 {isLoading ? 'Processing...' : 'Resend OTP'}
-              </Text>
+              </CustomText>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.loginButton, isLoading && styles.disabledButton]} 
               onPress={handleVerifyOtp}
               disabled={isLoading}
             >
-              <Text style={styles.loginButtonText}>
+              <CustomText style={styles.loginButtonText}>
                 {isLoading ? 'Verifying...' : 'Submit'}
-              </Text>
+              </CustomText>
             </TouchableOpacity>
           </View>
         )}
@@ -286,15 +297,15 @@ const RegisterScreen = ({ navigation }) => {
             onPress={handleSendOtp}
             disabled={isLoading}
           >
-            <Text style={styles.loginButtonText}>
+            <CustomText style={styles.loginButtonText}>
               {isLoading ? 'Sending...' : 'Send OTP'}
-            </Text>
+            </CustomText>
           </TouchableOpacity>
         )}
 
         <View style={styles.or}>
           <View style={styles.line} />
-          <Text style={styles.orText}>or</Text>
+          <CustomText style={styles.orText}>or</CustomText>
           <View style={styles.line} />
         </View>
 
@@ -302,7 +313,7 @@ const RegisterScreen = ({ navigation }) => {
           onPress={() => navigation.navigate('Login')} 
           style={styles.loginLink}
         >
-          <Text style={styles.textTitle_login}>Already have an account? Login</Text>
+          <CustomText style={styles.textTitle_login}>Already have an account? Login</CustomText>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

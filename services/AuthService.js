@@ -1,18 +1,23 @@
-// services/AuthService.js
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../src/config/constant';
 
-const API_BASE_URL = 'https://makemytwin.com/'; // Replace with your API base URL
-
-// Helper function for API requests
 const apiRequest = async (endpoint, method, body = null, requiresAuth = true) => {
   const headers = {
     'Content-Type': 'application/json',
   };
 
+  let token;
   if (requiresAuth) {
-    const token = await AsyncStorage.getItem('authToken');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    try {
+      token = await AsyncStorage.getItem('authToken');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      } else {
+        throw new Error('Authentication token not found');
+      }
+    } catch (error) {
+      console.error('Token retrieval error:', error);
+      throw new Error('Failed to retrieve authentication token');
     }
   }
 
@@ -26,39 +31,64 @@ const apiRequest = async (endpoint, method, body = null, requiresAuth = true) =>
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
     
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Request failed');
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        errorData = { message: 'Request failed' };
+      }
+      const errorMessage = errorData.message || `Request failed with status ${response.status}`;
+      throw new Error(errorMessage);
     }
 
     return await response.json();
   } catch (error) {
     console.error('API request error:', error);
-    throw error;
+    throw new Error(error.message || 'Network request failed. Please check your connection.');
   }
 };
 
 const AuthService = {
-  // Set auth token for requests
   setAuthToken: async (token) => {
     try {
+      if (!token) throw new Error('No token provided');
       await AsyncStorage.setItem('authToken', token);
     } catch (error) {
       console.error('Failed to set auth token:', error);
+      throw new Error('Failed to store authentication token');
     }
   },
 
-  // Clear auth token
   clearAuthToken: async () => {
     try {
       await AsyncStorage.removeItem('authToken');
     } catch (error) {
       console.error('Failed to clear auth token:', error);
+      throw new Error('Failed to clear authentication token');
     }
   },
 
   // Login user
   login: async (email, password) => {
-    return apiRequest('IoMTAppAPI//api/loginGeoUser.php', 'POST', { email, password }, false);
+    if (!email || !password) {
+      throw new Error('Email and password are required');
+    }
+    
+    try {
+      const response = await apiRequest('IoMTAppAPI//api/loginGeoUser.php', 'POST', { 
+        email, 
+        password 
+      }, false);
+      
+      if (!response.user || !response.token) {
+        throw new Error('Invalid response from server');
+      }
+      
+      return response;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw new Error(error.message || 'Login failed. Please try again.');
+    }
   },
 
   // Register new user
