@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import {
   View,
-  
   StyleSheet,
   TouchableOpacity,
   TextInput,
@@ -11,11 +10,17 @@ import {
   Alert,
   Dimensions,
   Image,
+  SafeAreaView,
+  StatusBar
 } from 'react-native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 import { RFValue } from 'react-native-responsive-fontsize';
 import CustomText from '../component/CustomText';
 import { launchImageLibrary } from 'react-native-image-picker';
+import { UseApi } from '../hooks/UseApi';
+import { LoadingContext } from '../context/LoadingProvider';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { LinearGradient } from 'expo-linear-gradient';
+
 const { width, height } = Dimensions.get('window');
 
 const RegisterScreen = ({ navigation }) => {
@@ -28,8 +33,11 @@ const RegisterScreen = ({ navigation }) => {
   const [showVerify, setShowVerify] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [photoName, setPhotoName] = useState('');
+  const [photoName, setPhotoName] = useState('helloPhoto');
   const [isLoading, setIsLoading] = useState(false);
+
+  const { get, post } = UseApi();
+  const { loading } = useContext(LoadingContext);
 
   const handleChoosePhoto = () => {
     launchImageLibrary({ mediaType: 'photo' }, response => {
@@ -66,45 +74,24 @@ const RegisterScreen = ({ navigation }) => {
 
     const payload = {
       email: email,
-      u_pass: password,
-      f_name: first_name,
-      l_name: last_name,
+      password: password,
+      firstName: first_name,
+      lastName: last_name,
       photo: photoName,
     };
 
-    setIsLoading(true);
+    console.log("the payload is : ", payload);
+
     try {
-      const response = await fetch(
-        'http://192.168.1.18:8080/auth/register-user',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      const data = await response.json();
-
-      console.log(data);
-
-      // if(response.status !== 201) {
-      //   Alert.alert('Error', data.message || 'Something went wrong');
-      //   return;
-      // }
-
-      if (data.status === 'success') {
+      const response = await post('http://192.168.1.41:8080/auth/register-user', payload);
+      console.log("Register response is ", response);
+      if (response) {
         setShowVerify(true);
-        Alert.alert('Success', data.message);
-      } else {
-        Alert.alert('Error', data.message || 'Something went wrong');
+        Alert.alert('Success', response.message);
       }
     } catch (error) {
-      console.error(error);
+      console.error('Error during registration:', error);
       Alert.alert('Error', 'Failed to send OTP');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -139,20 +126,12 @@ const RegisterScreen = ({ navigation }) => {
   const handleVerifyOtp = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(
-        'https://makemytwin.com/IoMTAppAPI//api/AuthGeoOtp.php',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email, otp }),
-        }
-      );
+      const response = await post('http://192.168.1.41:8080/auth/verify-otp', { 
+        email, 
+        otp 
+      });
 
-      const data = await response.json();
-
-      if (data.status === 'success') {
+      if (response) {
         Alert.alert('Success', 'Registration Complete');
         navigation.navigate('Login');
         // Clear form
@@ -173,251 +152,372 @@ const RegisterScreen = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
-      >
-        <CustomText style={styles.welcomeText}>Create Your Account</CustomText>
-        <CustomText style={styles.signInText}>Sign up to manage your geofences</CustomText>
-
-        <CustomText style={styles.textTitle}>First Name</CustomText>
-        <TextInput
-          style={styles.input}
-          placeholder="First Name"
-          autoCapitalize="none"
-          onChangeText={setFirstName}
-          value={first_name}
-        />
-
-        <CustomText style={styles.textTitle}>Last Name</CustomText>
-        <TextInput
-          style={styles.input}
-          placeholder="Last Name"
-          autoCapitalize="none"
-          onChangeText={setLastName}
-          value={last_name}
-        />
-
-        <CustomText style={styles.textTitle}>Email</CustomText>
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          onChangeText={setEmail}
-          value={email}
-        />
-
-        <CustomText style={styles.textTitle}>Password</CustomText>
-        <View style={styles.passwordContainer}>
-          <TextInput
-            style={styles.passInput}
-            placeholder="Password"
-            secureTextEntry={!showPassword}
-            onChangeText={setPassword}
-            value={password}
-          />
-          <TouchableOpacity
-            onPress={() => setShowPassword(!showPassword)}
-            style={styles.eyeIcon}
-          >
-            <Image
-              style={{ height: RFValue(18), width: RFValue(18) }}
-              source={
-                showPassword
-                  ? require('../../assets/icons/visible.png')
-                  : require('../../assets/icons/invisible.png')
-              }
-            />
-          </TouchableOpacity>
-        </View>
-
-        <CustomText style={styles.textTitle}>Confirm Password</CustomText>
-        <View style={styles.passwordContainer}>
-          <TextInput
-            style={styles.passInput}
-            placeholder="Confirm Password"
-            secureTextEntry={!showConfirmPassword}
-            onChangeText={setConfirmPassword}
-            value={confirmPassword}
-          />
-          <TouchableOpacity
-            onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-            style={styles.eyeIcon}
-          >
-            <Image
-              style={{ height: RFValue(18), width: RFValue(18) }}
-              source={
-                showConfirmPassword
-                  ? require('../../assets/icons/visible.png')
-                  : require('../../assets/icons/invisible.png')
-              }
-            />
-          </TouchableOpacity>
-        </View>
-
-        {showVerify && (
-          <View>
-            <CustomText style={styles.textTitle}>OTP</CustomText>
-            <TextInput
-              style={styles.input}
-              placeholder="OTP"
-              keyboardType="numeric"
-              onChangeText={setOtp}
-              value={otp}
-            />
-            <TouchableOpacity 
-              style={[styles.loginButton, isLoading && styles.disabledButton]} 
-              onPress={handleResendOtp}
-              disabled={isLoading}
-            >
-              <CustomText style={styles.loginButtonText}>
-                {isLoading ? 'Processing...' : 'Resend OTP'}
-              </CustomText>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.loginButton, isLoading && styles.disabledButton]} 
-              onPress={handleVerifyOtp}
-              disabled={isLoading}
-            >
-              <CustomText style={styles.loginButtonText}>
-                {isLoading ? 'Verifying...' : 'Submit'}
-              </CustomText>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {!showVerify && (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor="#6C63FF" />
+      
+      <LinearGradient
+        colors={['#6C63FF', '#5046e5']}
+        style={styles.headerGradient}>
+        <View style={styles.headerContent}>
           <TouchableOpacity 
-            style={[styles.loginButton, isLoading && styles.disabledButton]} 
-            onPress={handleSendOtp}
-            disabled={isLoading}
-          >
-            <CustomText style={styles.loginButtonText}>
-              {isLoading ? 'Sending...' : 'Send OTP'}
-            </CustomText>
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}>
+            <Icon name="arrow-left" size={24} color="#FFFFFF" />
           </TouchableOpacity>
-        )}
-
-        <View style={styles.or}>
-          <View style={styles.line} />
-          <CustomText style={styles.orText}>or</CustomText>
-          <View style={styles.line} />
+          <View>
+            <CustomText style={styles.appTitle}>Create Account</CustomText>
+            <CustomText style={styles.appSubtitle}>Join the SafeZone community</CustomText>
+          </View>
         </View>
+      </LinearGradient>
 
-        <TouchableOpacity 
-          onPress={() => navigation.navigate('Login')} 
-          style={styles.loginLink}
-        >
-          <CustomText style={styles.textTitle_login}>Already have an account? Login</CustomText>
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          
+          <View style={styles.formContainer}>
+            <View style={styles.inputGroup}>
+              <CustomText style={styles.inputLabel}>First Name</CustomText>
+              <View style={styles.textInputContainer}>
+                <Icon name="account-outline" size={20} color="#6C63FF" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your first name"
+                  placeholderTextColor="#9E9E9E"
+                  autoCapitalize="words"
+                  onChangeText={setFirstName}
+                  value={first_name}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <CustomText style={styles.inputLabel}>Last Name</CustomText>
+              <View style={styles.textInputContainer}>
+                <Icon name="account-outline" size={20} color="#6C63FF" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your last name"
+                  placeholderTextColor="#9E9E9E"
+                  autoCapitalize="words"
+                  onChangeText={setLastName}
+                  value={last_name}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <CustomText style={styles.inputLabel}>Email</CustomText>
+              <View style={styles.textInputContainer}>
+                <Icon name="email-outline" size={20} color="#6C63FF" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your email"
+                  placeholderTextColor="#9E9E9E"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  onChangeText={setEmail}
+                  value={email}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <CustomText style={styles.inputLabel}>Password</CustomText>
+              <View style={styles.textInputContainer}>
+                <Icon name="lock-outline" size={20} color="#6C63FF" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Create password"
+                  placeholderTextColor="#9E9E9E"
+                  secureTextEntry={!showPassword}
+                  onChangeText={setPassword}
+                  value={password}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeIcon}>
+                  <Icon
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#6C63FF"
+                  />
+                </TouchableOpacity>
+              </View>
+              <CustomText style={styles.passwordHint}>
+                Must be at least 8 characters with 1 special character
+              </CustomText>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <CustomText style={styles.inputLabel}>Confirm Password</CustomText>
+              <View style={styles.textInputContainer}>
+                <Icon name="lock-check-outline" size={20} color="#6C63FF" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirm your password"
+                  placeholderTextColor="#9E9E9E"
+                  secureTextEntry={!showConfirmPassword}
+                  onChangeText={setConfirmPassword}
+                  value={confirmPassword}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  style={styles.eyeIcon}>
+                  <Icon
+                    name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#6C63FF"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {showVerify && (
+              <View style={styles.otpContainer}>
+                <View style={styles.divider}>
+                  <View style={styles.dividerLine} />
+                  <CustomText style={styles.dividerText}>Enter OTP</CustomText>
+                  <View style={styles.dividerLine} />
+                </View>
+                
+                <View style={styles.inputGroup}>
+                  <CustomText style={styles.inputLabel}>Verification Code</CustomText>
+                  <View style={styles.textInputContainer}>
+                    <Icon name="shield-check-outline" size={20} color="#6C63FF" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Enter OTP sent to your email"
+                      placeholderTextColor="#9E9E9E"
+                      keyboardType="numeric"
+                      onChangeText={setOtp}
+                      value={otp}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.otpButtonsContainer}>
+                  <TouchableOpacity 
+                    style={[styles.secondaryButton, isLoading && styles.disabledButton]} 
+                    onPress={handleResendOtp}
+                    disabled={isLoading}>
+                    <CustomText style={styles.secondaryButtonText}>
+                      {isLoading ? 'Sending...' : 'Resend OTP'}
+                    </CustomText>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={[styles.primaryButton, isLoading && styles.disabledButton]} 
+                    onPress={handleVerifyOtp}
+                    disabled={isLoading}>
+                    <LinearGradient
+                      colors={['#6C63FF', '#5046e5']}
+                      style={styles.buttonGradient}>
+                      <CustomText style={styles.primaryButtonText}>
+                        {isLoading ? 'Verifying...' : 'Verify & Register'}
+                      </CustomText>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {!showVerify && (
+              <TouchableOpacity 
+                style={[styles.primaryButton, isLoading && styles.disabledButton]} 
+                onPress={handleSendOtp}
+                disabled={isLoading}>
+                <LinearGradient
+                  colors={['#6C63FF', '#5046e5']}
+                  style={styles.buttonGradient}>
+                  <CustomText style={styles.primaryButtonText}>
+                    {isLoading ? 'Sending...' : 'Continue'}
+                  </CustomText>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+
+            <View style={styles.loginPrompt}>
+              <CustomText style={styles.loginPromptText}>
+                Already have an account? 
+              </CustomText>
+              <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                <CustomText style={styles.loginLink}>Login</CustomText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    padding: 20,
-    backgroundColor: '#fff',
-    paddingTop: 30,
-    paddingHorizontal: 35,
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F8F9FB',
   },
-  passwordContainer: {
-    position: 'relative',
+  headerGradient: {
+    height: height * 0.18,
+    paddingHorizontal: width * 0.06,
+    justifyContent: 'center',
+  },
+  headerContent: {
     flexDirection: 'row',
-    display: 'flex',
     alignItems: 'center',
+    marginTop: height * 0.01,
   },
-  eyeIcon: {
-    paddingRight: width * 0.03,
-    paddingBottom: height * 0.02,
-    position: 'absolute',
-    right: 0,
+  backButton: {
+    padding: 8,
+    marginRight: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
-  welcomeText: {
-    fontSize: 24,
-    fontFamily: 'Manrope-ExtraBold',
-    color: '#000',
-    textAlign: 'left',
-    marginTop: 10,
+  appTitle: {
+    fontSize: RFValue(20),
+    color: '#ffffff',
+    fontFamily: 'Manrope-Bold',
   },
-  signInText: {
-    fontSize: 16,
-    color: '#6E6D7A',
-    textAlign: 'left',
-    marginBottom: 30,
+  appSubtitle: {
+    fontSize: RFValue(12),
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontFamily: 'Manrope-Medium',
+    marginTop: 4,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  formContainer: {
+    flex: 1,
+    backgroundColor: '#F8F9FB',
+    marginTop: -20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: width * 0.06,
+    paddingVertical: 30,
+  },
+  inputGroup: {
+    marginBottom: height * 0.02,
+  },
+  inputLabel: {
+    fontSize: RFValue(14),
+    fontFamily: 'Manrope-SemiBold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  textInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    height: height * 0.06,
+  },
+  inputIcon: {
+    marginRight: 10,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#DDD',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 25,
-    marginTop: 5,
-    color: 'black',
+    flex: 1,
+    color: '#333',
+    fontFamily: 'Manrope-Regular',
+    fontSize: RFValue(14),
+    paddingVertical: 10,
   },
-  passInput: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#DDD',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 25,
-    marginTop: 5,
-    color: 'black',
+  eyeIcon: {
+    padding: 8,
   },
-  textTitle: {
-    color: 'black',
-    fontFamily: 'Manrope-Bold',
+  passwordHint: {
+    fontSize: RFValue(11),
+    color: '#666',
+    fontFamily: 'Manrope-Regular',
+    marginTop: 4,
+    marginLeft: 4,
   },
-  textTitle_login: {
-    color: '#7D5FFF',
-    fontFamily: 'Manrope-Bold',
-    textAlign: 'center',
+  primaryButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: height * 0.02,
+    elevation: 3,
+    shadowColor: '#6C63FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
-  loginButton: {
-    backgroundColor: '#3F3D56',
-    paddingVertical: 15,
-    borderRadius: 25,
+  buttonGradient: {
+    paddingVertical: height * 0.018,
     alignItems: 'center',
-    marginBottom: 30,
-    marginTop: 30,
+    justifyContent: 'center',
+  },
+  primaryButtonText: {
+    color: '#FFF',
+    fontSize: RFValue(16),
+    fontFamily: 'Manrope-Bold',
+  },
+  secondaryButton: {
+    paddingVertical: height * 0.018,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#6C63FF',
+    marginBottom: height * 0.02,
+  },
+  secondaryButtonText: {
+    color: '#6C63FF',
+    fontSize: RFValue(14),
+    fontFamily: 'Manrope-SemiBold',
   },
   disabledButton: {
-    opacity: 0.6,
+    opacity: 0.7,
   },
-  loginButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  or: {
+  loginPrompt: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 30,
+    marginTop: height * 0.03,
   },
-  line: {
-    height: 1,
-    flex: 1,
-    backgroundColor: '#ddd',
-  },
-  orText: {
-    textAlign: 'center',
-    color: '#6E6D7A',
-    marginHorizontal: 10,
+  loginPromptText: {
+    fontSize: RFValue(14),
+    fontFamily: 'Manrope-Medium',
+    color: '#666',
   },
   loginLink: {
-    justifyContent: "center",
-    flexDirection: "row",
-    marginBottom: 20,
+    fontSize: RFValue(14),
+    fontFamily: 'Manrope-Bold',
+    color: '#6C63FF',
+    marginLeft: 5,
   },
+  otpContainer: {
+    marginTop: height * 0.01,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: height * 0.02,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E0E0E0',
+  },
+  dividerText: {
+    paddingHorizontal: 10,
+    fontSize: RFValue(14),
+    fontFamily: 'Manrope-SemiBold',
+    color: '#666',
+  },
+  otpButtonsContainer: {
+    marginTop: height * 0.01,
+  }
 });
 
 export default RegisterScreen;

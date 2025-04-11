@@ -1,85 +1,163 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
-  RefreshControl,
   View,
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Image,
   Dimensions,
   ScrollView,
-  Platform,
   SafeAreaView,
   StatusBar,
+  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import Geolocation from '@react-native-community/geolocation';
-// import PushNotification from 'react-native-push-notification';
-// import { requestPermissions } from '../utils/permissions';
-import { API_BASE_URL } from '../config/constant';
-import { useFocusEffect } from '@react-navigation/native';
-import LinearGradient from 'expo-linear-gradient';
-import CustomText from '../component/CustomText';
+import {LinearGradient} from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import CustomText from '../component/CustomText';
+import {  useUser } from '../context/userContext';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
 // Get device dimensions
 const { height, width } = Dimensions.get('window');
 
-// Define the Geofence type
+
+
+
+
+
+// Dummy data for the application
+const DUMMY_USER = {
+  firstName: 'John',
+  lastName: 'Doe',
+  profilePic: 'https://randomuser.me/api/portraits/men/32.jpg'
+};
+
+const DUMMY_GEOFENCES = [
+  {
+    id: '1',
+    geofence_name: 'Home Area',
+    radius: 200,
+    lat: 37.7749,
+    lng: -122.4194,
+    created_at: '2025-03-25T14:32:11Z',
+    active: true,
+    notifications: true,
+    color: ['#6C63FF', '#5046e5']
+  },
+  {
+    id: '2',
+    geofence_name: 'Office Zone',
+    radius: 150,
+    lat: 37.7833,
+    lng: -122.4167,
+    created_at: '2025-04-01T09:15:20Z',
+    active: true,
+    notifications: true,
+    color: ['#FF6B6B', '#FF4785']
+  },
+  {
+    id: '3',
+    geofence_name: 'Park Safety Zone',
+    radius: 300,
+    lat: 37.7694,
+    lng: -122.4862,
+    created_at: '2025-04-05T17:45:33Z',
+    active: false,
+    notifications: false,
+    color: ['#4CAF50', '#2E7D32']
+  }
+];
+
+const DUMMY_PEOPLE = [
+  {
+    id: '1',
+    name: 'Sarah Johnson',
+    relationship: 'Family',
+    last_seen: '2025-04-11T08:45:23Z',
+    avatar: null,
+  },
+  {
+    id: '2',
+    name: 'Michael Chen',
+    relationship: 'Friend',
+    last_seen: '2025-04-11T09:30:15Z',
+    avatar: null,
+  },
+  {
+    id: '3',
+    name: 'Emma Wilson',
+    relationship: 'Family',
+    last_seen: '2025-04-10T22:12:05Z',
+    avatar: null,
+  },
+  {
+    id: '4',
+    name: 'Robert Garcia',
+    relationship: 'Colleague',
+    last_seen: '2025-04-11T07:55:18Z',
+    avatar: null,
+  },
+  {
+    id: '5',
+    name: 'Lisa Taylor',
+    relationship: 'Friend',
+    last_seen: '2025-04-10T20:40:33Z',
+    avatar: null,
+  }
+];
+
+const DUMMY_TRACKERS = [
+  {
+    id: '1',
+    name: 'Personal Tracker',
+    device_id: 'PT-2873',
+    battery: 85,
+    active: true,
+    last_ping: '2025-04-11T09:55:12Z'
+  },
+  {
+    id: '2',
+    name: 'Keychain Tracker',
+    device_id: 'KT-9621',
+    battery: 62,
+    active: true,
+    last_ping: '2025-04-11T08:30:45Z'
+  },
+  {
+    id: '3',
+    name: 'Backpack Tag',
+    device_id: 'BT-4517',
+    battery: 24,
+    active: false,
+    last_ping: '2025-04-10T17:15:22Z'
+  }
+];
+
+// Format date for display
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 const HomeScreen = () => {
   const navigation = useNavigation();
-
-  // State variables
-  const [refreshing, setRefreshing] = useState(false);
   const [greeting, setGreeting] = useState('');
-  const [latestGeofence, setLatestGeofence] = useState(null);
-  const [recentPeople, setRecentPeople] = useState([]);
-  const [trackers, setTrackers] = useState([]);
-  const [user, setUser] = useState(null);
-  const [userId, setUserId] = useState(null);
-  const [currentLocation, setCurrentLocation] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const {user}= useUser();
 
-  // Format date for display
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const tabBarHeight= useBottomTabBarHeight();
 
-  // Refresh data
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    Promise.all([
-      fetchGeofences(),
-      fetchPeople(),
-      fetchTrackers(),
-    ]).finally(() => {
-      setRefreshing(false);
-    });
-  }, [userId]);
 
-  // Get user data from AsyncStorage
-  const getUserData = async () => {
-    try {
-      const storedUser = await AsyncStorage.getItem('user');
-      const storedUserId = await AsyncStorage.getItem('userId');
-      if (storedUser && storedUserId) {
-        setUser(storedUser?.toUpperCase());
-        setUserId(storedUserId);
-      }
-    } catch (error) {
-      console.error('Error fetching user data:', error);
-    }
-  };
+
 
   // Set greeting based on time of day
-  const setGreetingMessage = () => {
+  useEffect(() => {
     const currentHour = new Date().getHours();
     if (currentHour < 12) {
       setGreeting('Good Morning,');
@@ -88,257 +166,196 @@ const HomeScreen = () => {
     } else {
       setGreeting('Good Evening,');
     }
-  };
-
-
-
-  // Update user location in database
-  const updateLocationInPeopleTable = async (latitude, longitude) => {
-    if (!userId) return;
-    
-    try {
-      const response = await fetch(`${API_BASE_URL}/peoples/update_location/${userId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          lat: latitude,
-          lon: longitude,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to update location: ${response.status}`);
-      }
-    } catch (error) {
-      console.error('Error updating location:', error);
-    }
-  };
-
-  // Fetch geofences data
-  const fetchGeofences = async () => {
-    if (!userId) return;
-    
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/geofence/geofence_creator_details?user_id=${userId}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch geofences: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-
-      if (data.length > 0) {
-        const sortedData = data.sort(
-          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-        setLatestGeofence(sortedData[0]);
-      }
-    } catch (error) {
-      console.error('Error fetching geofences:', error);
-    }
-  };
-
-  // Fetch people data
-  const fetchPeople = async () => {
-    if (!userId) return;
-    
-    try {
-      const response = await fetch(`${API_BASE_URL}/peoples?user_id=${userId}`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch people: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      setRecentPeople(data.slice(0, 5)); // Only show 5 most recent people
-    } catch (error) {
-      console.error('Error fetching people:', error);
-    }
-  };
-
-  // Fetch trackers data
-  const fetchTrackers = async () => {
-    if (!userId) return;
-    
-    try {
-      const response = await fetch(`${API_BASE_URL}/trackers?user_id=${userId}`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch trackers: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      setTrackers(data.slice(0, 3)); // Only show 3 most recent trackers
-    } catch (error) {
-      console.error('Error fetching trackers:', error);
-    }
-  };
-
-  // Set up location tracking
-  useEffect(() => {
-    if (!userId) return;
-    
-    const watchId = Geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setCurrentLocation({ latitude, longitude });
-        updateLocationInPeopleTable(latitude, longitude);
-      },
-      (error) => {
-        console.error('Geolocation error:', error);
-      },
-      {
-        enableHighAccuracy: true,
-        distanceFilter: 10,
-        interval: 10000,
-        fastestInterval: 5000,
-      }
-    );
-
-    return () => {
-      Geolocation.clearWatch(watchId);
-    };
-  }, [userId]);
-
-  // Initial setup
-  useEffect(() => {
-    setGreetingMessage();
-    getUserData();
   }, []);
 
-  // Refresh data when userId changes or screen is focused
-  useEffect(() => {
-    if (userId) {
-      
-      onRefresh();
-    }
-  }, [userId]);
+  // Simulate refresh action
+  const onRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1500);
+  };
 
-  useFocusEffect(
-    useCallback(() => {
-      if (userId) {
-        onRefresh();
-      }
-      return () => {};
-    }, [userId])
-  );
-
-  // Section component
-  const Section = ({ title, type, data, onPress }) => {
-    const renderContent = () => {
-      switch (type) {
-        case 'geofence':
-          return latestGeofence ? (
+  // Component for rendering geofence cards
+  const GeofenceSection = () => {
+    return (
+      <View style={styles.geofenceSection}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {DUMMY_GEOFENCES.map((geofence, index) => (
             <TouchableOpacity
+              key={index}
               style={styles.geofenceCard}
-              onPress={() => navigation.navigate('GeoZone', { geofence: latestGeofence })}>
+              onPress={() => navigation.navigate('GeoZone', { geofence })}>
               <LinearGradient
-                colors={['#6C63FF', '#5046e5']}
+                colors={geofence.color}
                 style={styles.gradientCard}>
                 <View style={styles.cardHeader}>
-                  <Icon name="map-marker-radius" size={22} color="#fff" />
-                  <CustomText style={styles.geofenceName}>{latestGeofence.geofence_name}</CustomText>
+                  <Icon name="map-marker-radius" size={24} color="#fff" />
+                  <CustomText style={styles.geofenceName}>{geofence.geofence_name}</CustomText>
                 </View>
-                <CustomText style={styles.geofenceDetails}>
-                  Created: {formatDate(latestGeofence.created_at)}
-                </CustomText>
+                <View style={styles.geofenceMetaContainer}>
+                  <View style={styles.geofenceMeta}>
+                    <Icon name="radius" size={16} color="#fff" />
+                    <CustomText style={styles.geofenceMetaText}>{geofence.radius}m</CustomText>
+                  </View>
+                  <View style={styles.geofenceMeta}>
+                    <Icon name="calendar" size={16} color="#fff" />
+                    <CustomText style={styles.geofenceMetaText}>{new Date(geofence.created_at).toLocaleDateString()}</CustomText>
+                  </View>
+                </View>
                 <View style={styles.geofenceFooter}>
                   <View style={styles.statusBadge}>
-                    <CustomText style={styles.statusText}>Active</CustomText>
+                    <View style={[styles.statusDot, { backgroundColor: geofence.active ? '#4CAF50' : '#FF9800' }]} />
+                    <CustomText style={styles.statusText}>{geofence.active ? 'Active' : 'Inactive'}</CustomText>
                   </View>
-                  <CustomText style={styles.viewDetailsText}>View Details</CustomText>
+                  <TouchableOpacity style={styles.viewButton}>
+                    <CustomText style={styles.viewDetailsText}>View</CustomText>
+                    <Icon name="chevron-right" size={16} color="#fff" />
+                  </TouchableOpacity>
                 </View>
               </LinearGradient>
             </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.emptyCard}
-              onPress={() => navigation.navigate('CreateGeofence')}>
-              <Icon name="plus-circle-outline" size={36} color="#6C63FF" />
-              <CustomText style={styles.emptyCardText}>Create a new geofence</CustomText>
-            </TouchableOpacity>
-          );
-        case 'people':
-          return (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.circleContainer}>
-                {recentPeople.length > 0 ? (
-                  recentPeople.map((person, index) => (
-                    <View key={index} style={styles.personItem}>
-                      <View style={styles.personCircle}>
-                        <CustomText style={styles.personInitial}>
-                          {person.name ? person.name.charAt(0).toUpperCase() : '?'}
-                        </CustomText>
-                      </View>
-                      <CustomText style={styles.personName} numberOfLines={1}>
-                        {person.name || 'Unknown'}
-                      </CustomText>
-                    </View>
-                  ))
-                ) : (
-                  <>
-                    {[...Array(5)].map((_, index) => (
-                      <View key={index} style={styles.personItem}>
-                        <View style={styles.personCircle}>
-                          <Icon name="account-question" size={20} color="#fff" />
-                        </View>
-                        <CustomText style={styles.personName}>Add Person</CustomText>
-                      </View>
-                    ))}
-                  </>
-                )}
-              </View>
-            </ScrollView>
-          );
-        case 'trackers':
-          return (
-            <View style={styles.trackerContainer}>
-              {trackers.length > 0 ? (
-                trackers.map((tracker, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.trackerCard}
-                    onPress={() => navigation.navigate('TrackerDetails', { tracker })}>
-                    <View style={styles.trackerInfo}>
-                      <Icon name="radar" size={20} color="#6C63FF" />
-                      <CustomText style={styles.trackerName}>{tracker.name || 'Tracker'}</CustomText>
-                    </View>
-                    <View style={styles.trackerStatus}>
-                      <View style={[styles.statusIndicator, { backgroundColor: tracker.active ? '#4CAF50' : '#FF9800' }]} />
-                      <CustomText style={styles.trackerStatusText}>
-                        {tracker.active ? 'Active' : 'Inactive'}
-                      </CustomText>
-                    </View>
-                  </TouchableOpacity>
-                ))
-              ) : (
-                <TouchableOpacity
-                  style={styles.emptyCard}
-                  onPress={() => navigation.navigate('CreateTracker')}>
-                  <Icon name="plus-circle-outline" size={36} color="#6C63FF" />
-                  <CustomText style={styles.emptyCardText}>Add a new tracker</CustomText>
-                </TouchableOpacity>
-              )}
-            </View>
-          );
-        default:
-          return null;
-      }
-    };
+          ))}
+          <TouchableOpacity
+            style={styles.addGeofenceCard}
+            onPress={() => navigation.navigate('CreateGeofence')}>
+            <LinearGradient
+              colors={['#e0e0e0', '#f5f5f5']}
+              style={styles.gradientAddCard}>
+              <Icon name="plus-circle" size={40} color="#6C63FF" />
+              <CustomText style={styles.addGeofenceText}>Add New Geofence</CustomText>
+            </LinearGradient>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    );
+  };
 
+  // Component for people section
+  const PeopleSection = () => {
+    return (
+      <View style={styles.peopleSection}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {DUMMY_PEOPLE.map((person, index) => {
+            // Generate consistent colors based on person name
+            const charCode = person.name.charCodeAt(0);
+            const hue = (charCode * 15) % 360;
+            const personColor = `hsl(${hue}, 70%, 60%)`;
+            
+            return (
+              <TouchableOpacity 
+                key={index} 
+                style={styles.personItem}
+                onPress={() => navigation.navigate('PersonDetails', { person })}>
+                <View style={[styles.personCircle, { backgroundColor: personColor }]}>
+                  <CustomText style={styles.personInitial}>{person.name.charAt(0).toUpperCase()}</CustomText>
+                </View>
+                <CustomText style={styles.personName} numberOfLines={1}>
+                  {person.name}
+                </CustomText>
+                {person.last_seen && (
+                  <View style={styles.lastSeenContainer}>
+                    <Icon name="clock-outline" size={10} color="#666" />
+                    <CustomText style={styles.lastSeenText}>
+                      {new Date(person.last_seen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </CustomText>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+          <TouchableOpacity 
+            style={styles.personItem}
+            onPress={() => navigation.navigate('AddPerson')}>
+            <View style={[styles.personCircle, { backgroundColor: '#e0e0e0' }]}>
+              <Icon name="plus" size={24} color="#6C63FF" />
+            </View>
+            <CustomText style={styles.personName}>Add New</CustomText>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    );
+  };
+
+  // Component for trackers section
+  const TrackersSection = () => {
+    return (
+      <View style={styles.trackersSection}>
+        {DUMMY_TRACKERS.map((tracker, index) => (
+          <TouchableOpacity
+            key={index}
+            style={styles.trackerCard}
+            onPress={() => navigation.navigate('TrackerDetails', { tracker })}>
+            <View style={styles.trackerInfo}>
+              <View style={styles.trackerIconContainer}>
+                <LinearGradient
+                  colors={tracker.active ? ['#6C63FF', '#5046e5'] : ['#9e9e9e', '#757575']}
+                  style={styles.trackerIconBackground}>
+                  <Icon name="radar" size={20} color="#fff" />
+                </LinearGradient>
+              </View>
+              <View style={styles.trackerDetails}>
+                <CustomText style={styles.trackerName}>{tracker.name}</CustomText>
+                <CustomText style={styles.trackerDeviceId}>ID: {tracker.device_id}</CustomText>
+              </View>
+            </View>
+            <View style={styles.trackerStatus}>
+              <View style={styles.batteryContainer}>
+                <Icon 
+                  name={getBatteryIcon(tracker.battery)} 
+                  size={16} 
+                  color={getBatteryColor(tracker.battery)} 
+                />
+                <CustomText style={[styles.batteryText, { color: getBatteryColor(tracker.battery) }]}>
+                  {tracker.battery}%
+                </CustomText>
+              </View>
+              <View style={styles.statusContainer}>
+                <View style={[styles.statusIndicator, { backgroundColor: tracker.active ? '#4CAF50' : '#FF9800' }]} />
+                <CustomText style={styles.trackerStatusText}>
+                  {tracker.active ? 'Active' : 'Inactive'}
+                </CustomText>
+              </View>
+            </View>
+          </TouchableOpacity>
+        ))}
+        <TouchableOpacity
+          style={styles.addTrackerCard}
+          onPress={() => navigation.navigate('AddTracker')}>
+          <Icon name="plus-circle-outline" size={24} color="#6C63FF" />
+          <CustomText style={styles.addTrackerText}>Add New Tracker</CustomText>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  // Helper function to determine battery icon
+  const getBatteryIcon = (level) => {
+    if (level > 75) return 'battery-high';
+    if (level > 50) return 'battery-medium';
+    if (level > 25) return 'battery-low';
+    return 'battery-alert';
+  };
+
+  // Helper function to determine battery color
+  const getBatteryColor = (level) => {
+    if (level > 75) return '#4CAF50';
+    if (level > 50) return '#8BC34A';
+    if (level > 25) return '#FF9800';
+    return '#F44336';
+  };
+
+  // Section component with title and content
+  const Section = ({ title, children, onSeeAllPress }) => {
     return (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <CustomText style={styles.sectionTitle}>{title}</CustomText>
-          <TouchableOpacity onPress={onPress}>
+          <TouchableOpacity onPress={onSeeAllPress}>
             <CustomText style={styles.seeAll}>See all</CustomText>
           </TouchableOpacity>
         </View>
-        <View style={styles.sectionContent}>{renderContent()}</View>
+        <View style={styles.sectionContent}>{children}</View>
       </View>
     );
   };
@@ -347,45 +364,65 @@ const HomeScreen = () => {
     {
       id: '1',
       title: 'Your Geofences',
-      type: 'geofence',
-      onPress: () => navigation.navigate('Geofences'),
+      content: <GeofenceSection />,
+      onSeeAllPress: () => navigation.navigate('Geofences'),
     },
     {
       id: '2',
       title: 'People',
-      type: 'people',
-      onPress: () => navigation.navigate('People'),
+      content: <PeopleSection />,
+      onSeeAllPress: () => navigation.navigate('People'),
     },
     {
       id: '3',
       title: 'Trackers',
-      type: 'trackers',
-      onPress: () => navigation.navigate('Trackers'),
+      content: <TrackersSection />,
+      onSeeAllPress: () => navigation.navigate('Trackers'),
     },
   ];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar backgroundColor="#EEF3F5" barStyle="dark-content" />
+    <SafeAreaView style={[styles.safeArea,{
+      paddingBottom: tabBarHeight, // Add padding at the bottom to avoid overlap with the tab bar
+    }]}>
+      
       <View style={styles.container}>
         <View style={styles.header}>
           <View>
             <CustomText style={styles.greeting}>{greeting}</CustomText>
-            <CustomText style={styles.name}>{user}</CustomText>
+            <CustomText style={styles.name}>{`${DUMMY_USER.firstName} ${DUMMY_USER.lastName}`}</CustomText>
           </View>
-          <View style={styles.headerButtons}>
+          <View style={styles.headerRight}>
             <TouchableOpacity
               style={styles.iconButton}
               onPress={() => navigation.navigate('Alerts')}>
-              <Icon name="bell" size={24} color="#6C63FF" />
-              {/* Notification badge would go here if needed */}
+              <Icon name="bell" size={22} color="#6C63FF" />
+              <View style={styles.notificationBadge} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => navigation.navigate('Settings')}>
-              <Icon name="cog" size={24} color="#6C63FF" />
+              style={styles.profileButton}
+              onPress={() => navigation.navigate('Profile')}>
+              <Image 
+                source={{ uri: DUMMY_USER.profilePic }} 
+                style={styles.profileImage} 
+              />
             </TouchableOpacity>
           </View>
+        </View>
+
+        <View style={styles.mapPreviewContainer}>
+          <TouchableOpacity 
+            style={styles.mapPreview}
+            onPress={() => navigation.navigate('Map')}
+            >
+            <LinearGradient
+              colors={['rgba(108, 99, 255, 0.8)', 'rgba(80, 70, 229, 0.9)']}
+              style={styles.mapGradient}>
+              <Icon name="map" size={24} color="#fff" />
+              <CustomText style={styles.mapText}>View Live Map</CustomText>
+              <Icon name="chevron-right" size={20} color="#fff" />
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
 
         <FlatList
@@ -393,60 +430,57 @@ const HomeScreen = () => {
           renderItem={({ item }) => (
             <Section
               title={item.title}
-              type={item.type}
-              onPress={item.onPress}
-            />
+              onSeeAllPress={item.onSeeAllPress}>
+              {item.content}
+            </Section>
           )}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={['#6C63FF']}
-            />
-          }
+          showsVerticalScrollIndicator={false}
         />
       </View>
     </SafeAreaView>
+
   );
 };
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#EEF3F5',
+    backgroundColor: '#F8F9FB',
+    // paddingBottom: 26,
   },
   container: {
     flex: 1,
-    backgroundColor: '#EEF3F5',
+    backgroundColor: '#F8F9FB',
     padding: 16,
+    paddingBottom:0
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 20,
     paddingVertical: 8,
   },
   greeting: {
     fontSize: 16,
-    color: '#333',
+    color: '#666',
     fontFamily: 'Manrope-SemiBold',
   },
   name: {
-    fontSize: 20,
-    color: '#6C63FF',
+    fontSize: 24,
+    color: '#333',
     fontFamily: 'Manrope-Bold',
     marginTop: 2,
   },
-  headerButtons: {
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   iconButton: {
     padding: 8,
-    marginLeft: 12,
+    marginRight: 12,
     backgroundColor: '#fff',
     borderRadius: 12,
     elevation: 2,
@@ -454,18 +488,72 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+    position: 'relative',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF4785',
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  profileButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  profileImage: {
+    width: '100%',
+    height: '100%',
+  },
+  mapPreviewContainer: {
+    marginBottom: 16,
+  },
+  mapPreview: {
+    height: 60,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  mapGradient: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+  },
+  mapText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Manrope-Bold',
+    flex: 1,
+    marginLeft: 10,
   },
   list: {
     paddingBottom: 16,
   },
   section: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 18,
@@ -480,25 +568,30 @@ const styles = StyleSheet.create({
   sectionContent: {
     borderRadius: 12,
   },
-  gradientCard: {
-    padding: 16,
-    borderRadius: 12,
-    height: '100%',
+  // Geofence section styles
+  geofenceSection: {
+    marginVertical: 4,
   },
   geofenceCard: {
-    height: 130,
-    borderRadius: 12,
+    width: width * 0.7,
+    height: 150,
+    borderRadius: 16,
     overflow: 'hidden',
+    marginRight: 12,
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 4,
+  },
+  gradientCard: {
+    padding: 16,
+    height: '100%',
+    justifyContent: 'space-between',
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
   },
   geofenceName: {
     fontSize: 18,
@@ -506,67 +599,96 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope-Bold',
     marginLeft: 8,
   },
-  geofenceDetails: {
-    fontSize: 14,
+  geofenceMetaContainer: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  geofenceMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  geofenceMetaText: {
     color: '#fff',
-    fontFamily: 'Manrope-Regular',
+    fontSize: 12,
+    fontFamily: 'Manrope-Medium',
+    marginLeft: 4,
     opacity: 0.9,
   },
   geofenceFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 14,
+    marginTop: 10,
   },
   statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 10,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 4,
   },
   statusText: {
     color: '#fff',
     fontSize: 12,
     fontFamily: 'Manrope-SemiBold',
   },
+  viewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   viewDetailsText: {
     color: '#fff',
     fontSize: 14,
     fontFamily: 'Manrope-SemiBold',
+    marginRight: 4,
   },
-  emptyCard: {
-    height: 130,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+  addGeofenceCard: {
+    width: width * 0.35,
+    height: 150,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginRight: 12,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
   },
-  emptyCardText: {
+  gradientAddCard: {
+    padding: 16,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addGeofenceText: {
     marginTop: 8,
     color: '#6C63FF',
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'Manrope-SemiBold',
+    textAlign: 'center',
   },
-  circleContainer: {
+  // People section styles
+  peopleSection: {
     flexDirection: 'row',
     paddingVertical: 8,
-    paddingHorizontal: 4,
   },
   personItem: {
     alignItems: 'center',
-    marginHorizontal: 12,
+    marginRight: 18,
     width: 70,
   },
   personCircle: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#6C63FF',
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 3,
@@ -587,8 +709,20 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope-Medium',
     textAlign: 'center',
   },
-  trackerContainer: {
-    marginTop: 8,
+  lastSeenContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  lastSeenText: {
+    fontSize: 10,
+    color: '#666',
+    fontFamily: 'Manrope-Regular',
+    marginLeft: 2,
+  },
+  // Trackers section styles
+  trackersSection: {
+    marginTop: 4,
   },
   trackerCard: {
     flexDirection: 'row',
@@ -596,7 +730,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 10,
     elevation: 2,
     shadowColor: '#000',
@@ -607,27 +741,76 @@ const styles = StyleSheet.create({
   trackerInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+  },
+  trackerIconContainer: {
+    marginRight: 12,
+  },
+  trackerIconBackground: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  trackerDetails: {
+    flex: 1,
   },
   trackerName: {
     fontSize: 16,
     color: '#333',
     fontFamily: 'Manrope-SemiBold',
-    marginLeft: 10,
+  },
+  trackerDeviceId: {
+    fontSize: 12,
+    color: '#666',
+    fontFamily: 'Manrope-Regular',
+    marginTop: 2,
   },
   trackerStatus: {
+    alignItems: 'flex-end',
+  },
+  batteryContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  batteryText: {
+    fontSize: 12,
+    fontFamily: 'Manrope-Medium',
+    marginLeft: 4,
+  },
+  statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   statusIndicator: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     marginRight: 6,
   },
   trackerStatusText: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666',
     fontFamily: 'Manrope-Medium',
+  },
+  addTrackerCard: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderStyle: 'dashed',
+  },
+  addTrackerText: {
+    color: '#6C63FF',
+    fontSize: 14,
+    fontFamily: 'Manrope-SemiBold',
+    marginLeft: 8,
   },
 });
 

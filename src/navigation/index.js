@@ -13,7 +13,7 @@ const AppNavigation = () => {
   };
   return (
     <NavigationContainer ref={navigationRef} theme={CustomTheme}>
-      <MainStackNavigator />
+      <MainStackNavigator />    
     </NavigationContainer>
   );
 };

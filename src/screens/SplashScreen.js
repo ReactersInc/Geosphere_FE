@@ -1,40 +1,118 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Image,
   StyleSheet,
-  TouchableOpacity,
   Dimensions,
+  Animated,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import CustomText from '../component/CustomText';
 import { StackActions } from '@react-navigation/native';
 
-const { width } = Dimensions.get('window');
-
-const data = {
-  id: '1',
-  image: require('../../assets/images/bro.png'),
-  text: 'Welcome to GeoFencer',
-  desc: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit. Qui dicta minus molestiae vel beatae natus eveniet ratione temporibus aperiam harum alias officiis assumenda officia quibusdam deleniti eos cupiditate dolore doloribus!',
-};
+const { width, height } = Dimensions.get('window');
 
 const SplashScreen = ({ navigation }) => {
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [slideAnim] = useState(new Animated.Value(50));
+
+  useEffect(() => {
+    // Animation for fade in and slide up
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Auto navigate after 2 seconds
+    const timer = setTimeout(() => {
+      // navigation.dispatch(StackActions.replace('Main'));
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <View style={styles.container}>
-      <View style={styles.slide}>
-        <View style={styles.content}>
-          <Image source={data.image} style={styles.image1} />
-          <CustomText style={styles.textBelowImage}>{data.text}</CustomText>
-          <CustomText style={styles.textBelowImageDesc}>{data.desc}</CustomText>
-        </View>
-      </View>
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.dispatch(StackActions.replace('Landing'))}
+      <LinearGradient
+        colors={['#F8F9FB', '#EFF1F5']}
+        style={styles.gradientBackground}
       >
-        <CustomText style={styles.buttonText}>Get Started</CustomText>
-      </TouchableOpacity>
+        <Animated.View
+          style={[
+            styles.content,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <View style={styles.logoContainer}>
+            <LinearGradient
+              colors={['#6C63FF', '#5046e5']}
+              style={styles.logoBackground}
+            >
+              <Icon name="map-marker-radius" size={36} color="#fff" />
+            </LinearGradient>
+          </View>
+
+          <Image
+            source={require('../../assets/images/bro.png')}
+            style={styles.image}
+          />
+
+          <View style={styles.textContainer}>
+            <CustomText style={styles.title}>GeoSphere</CustomText>
+            <CustomText style={styles.subtitle}>Location Safety Made Simple</CustomText>
+          </View>
+
+          <View style={styles.featuresContainer}>
+            <View style={styles.featureItem}>
+              <View style={styles.featureIconContainer}>
+                <LinearGradient
+                  colors={['#6C63FF', '#5046e5']}
+                  style={styles.featureIconBackground}
+                >
+                  <Icon name="map-marker-radius" size={20} color="#fff" />
+                </LinearGradient>
+              </View>
+              <CustomText style={styles.featureText}>Custom Geofences</CustomText>
+            </View>
+
+            <View style={styles.featureItem}>
+              <View style={styles.featureIconContainer}>
+                <LinearGradient
+                  colors={['#FF6B6B', '#FF4785']}
+                  style={styles.featureIconBackground}
+                >
+                  <Icon name="account-group" size={20} color="#fff" />
+                </LinearGradient>
+              </View>
+              <CustomText style={styles.featureText}>Family Tracking</CustomText>
+            </View>
+
+            <View style={styles.featureItem}>
+              <View style={styles.featureIconContainer}>
+                <LinearGradient
+                  colors={['#4CAF50', '#2E7D32']}
+                  style={styles.featureIconBackground}
+                >
+                  <Icon name="bell-ring" size={20} color="#fff" />
+                </LinearGradient>
+              </View>
+              <CustomText style={styles.featureText}>Instant Alerts</CustomText>
+            </View>
+          </View>
+        </Animated.View>
+      </LinearGradient>
     </View>
   );
 };
@@ -42,53 +120,85 @@ const SplashScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
   },
-  slide: {
+  gradientBackground: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    width,
+    padding: 24,
   },
   content: {
+    width: '100%',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  image1: {
-    width: width * 0.8,
-    height: null,
-    aspectRatio: 1,
+  logoContainer: {
+    marginBottom: 24,
+  },
+  logoBackground: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+  },
+  image: {
+    width: width * 0.7,
+    height: width * 0.5,
     resizeMode: 'contain',
-    alignSelf: 'center',
+    marginBottom: 24,
   },
-  textBelowImage: {
-    textAlign: 'center',
-    fontSize: 24,
-    fontFamily: 'Manrope-ExtraBold',
-    color: '#6C63FF',
-    marginTop: 20,
-    marginBottom: 10,
+  textContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
   },
-  textBelowImageDesc: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: '#3F3D56',
-    paddingHorizontal: 20,
-    marginBottom: 10,
-    fontFamily: 'Manrope-Medium',
-  },
-  button: {
-    marginBottom: 30,
-    backgroundColor: '#3F3D56',
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    borderRadius: 25,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
+  title: {
     fontFamily: 'Manrope-Bold',
+    fontSize: 32,
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontFamily: 'Manrope-SemiBold',
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+  featuresContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  featureItem: {
+    alignItems: 'center',
+    width: '33%',
+  },
+  featureIconContainer: {
+    marginBottom: 8,
+  },
+  featureIconBackground: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  featureText: {
+    fontFamily: 'Manrope-SemiBold',
+    fontSize: 12,
+    color: '#333',
+    textAlign: 'center',
   },
 });
 

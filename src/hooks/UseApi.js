@@ -3,6 +3,7 @@ import { UserContext } from '../context/userContext';
 import { useNavigation } from '@react-navigation/native';
 import { Alert } from 'react-native';
 import { LoadingContext } from '../context/LoadingProvider';
+import { useToast } from '../component/ToastProvider';
 
 const API_URL = 'https://makemytwin.com/'; // Replace with your API URL
 
@@ -11,6 +12,8 @@ export const UseApi = () => {
   const { setLoading } = useContext(LoadingContext); 
   const navigation = useNavigation();
   const interceptorsAdded = useRef(false);
+
+  const {showToast}= useToast();
 
   const fetchWithInterceptors = async (url, options = {}) => {
     try {
@@ -63,20 +66,15 @@ export const UseApi = () => {
       
       if (statusCode === 401) {
         console.log('Token expired');
-        Alert.alert(
-          'Session Expired',
-          'Your session has expired. Please log in again.',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                logout();
-                navigation.replace('Login');
-              },
-            },
-          ]
-        );
-      } else if (statusCode === 400) {
+       showToast({
+          message: 'Session expired. Please log in again.',
+          type: 'error',
+          duration: 3000,
+          position: 'top',
+        });
+        logout(); // Call the logout function from UserContext
+        
+       }else if (statusCode === 400) {
         setError('Bad Request. Please check your input.');
       } else if (statusCode === 404) {
         setError('Resource not found.');

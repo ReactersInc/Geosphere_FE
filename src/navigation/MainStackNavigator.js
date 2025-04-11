@@ -6,42 +6,45 @@ import SplashScreen from '../screens/SplashScreen';
 import { LoadingContext } from '../context/LoadingProvider';
 import LoginScreen from '../screens/Login';
 import RegisterScreen from '../screens/Register';
-
-
-import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import HomeScreen from '../screens/HomeScreen';
-
+import LandingScreen from '../screens/LandingScreen';
 
 const Stack = createStackNavigator();
 
 const MainStackNavigator = () => {
-
   const { loading } = useContext(LoadingContext);
-  const { token, } = useContext(UserContext);
-  const [initialRoute, setInitialRoute] = useState('SplashScreen');
+  const { token, isAuthenticated } = useContext(UserContext);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     if (!loading) {
-      setTimeout(() => {
-        setInitialRoute(token ? 'MainApp' : 'Login');
-      }, 2000);
+      const timeout = setTimeout(() => {
+        setShowSplash(false);
+      }, 3000);
+      return () => clearTimeout(timeout);
     }
-  }, [token, loading]);
+  }, [loading]);
 
-  if (loading || initialRoute === 'SplashScreen') {
+  if (showSplash) {
     return <SplashScreen />;
   }
 
   return (
-    
-    <Stack.Navigator initialRouteName={initialRoute}>
-      <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="MainApp" component={BottomTabNavigator} options={{ headerShown: false }} />
-      <Stack.Screen name="HomeScreen" component={HomeScreen} options={{ headerShown: false }} />
-      
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {!isAuthenticated ? (
+        <>
+          
+          {/* <Stack.Screen name="landing" component={LandingScreen} /> */}
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
+        </>
+      ) : (
+        <>
+          <Stack.Screen name="MainApp" component={BottomTabNavigator} />
+          <Stack.Screen name="HomeScreen" component={HomeScreen} />
+        </>
+      )}
     </Stack.Navigator>
-    
   );
 };
 

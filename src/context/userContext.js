@@ -165,6 +165,7 @@ export const UserProvider = ({ children }) => {
       await Promise.all([
         AsyncStorage.setItem('authToken', authToken),
         AsyncStorage.setItem('user', JSON.stringify(userData))
+        
       ]);
 
       setUser(userData);
@@ -209,6 +210,9 @@ export const UserProvider = ({ children }) => {
     setTheme(newTheme);
     await AsyncStorage.setItem('appTheme', newTheme);
   };
+
+
+  // console.log("user detals are ", user);
 
   return (
     <UserContext.Provider

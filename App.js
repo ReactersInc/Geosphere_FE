@@ -1,5 +1,5 @@
 import React from 'react';
-import { StatusBar, View, ActivityIndicator } from 'react-native';
+import { StatusBar, View, ActivityIndicator, LogBox, SafeAreaView } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
@@ -19,8 +19,11 @@ import { LoadingProvider } from './src/context/LoadingProvider';
 import SplashScreen from './src/screens/SplashScreen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigation from './src/navigation';
+import ConfirmationProvider from './src/component/ConfirmationProvider';
 
 
+
+LogBox.ignoreAllLogs(true); 
 
 const App = () => {
 
@@ -40,16 +43,20 @@ const App = () => {
       <UserProvider>
       <LoadingProvider>
         {/* <NetworkProvider> */}
-          <SafeAreaProvider>
+          <SafeAreaView style={{ flex:1 }}>
+              <ConfirmationProvider>
             <ToastProvider>
-              <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+
+             <StatusBar backgroundColor="#F8F9FB" barStyle="dark-content" />
               
               <AppNavigation />
               
               <GlobalLoader />
               {/* <NetworkComponent /> */}
+
             </ToastProvider>
-          </SafeAreaProvider>
+              </ConfirmationProvider>
+          </SafeAreaView>
         {/* </NetworkProvider> */}
       </LoadingProvider>
       </UserProvider>
