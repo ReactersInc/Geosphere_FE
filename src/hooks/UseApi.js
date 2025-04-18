@@ -5,7 +5,7 @@ import { Alert } from 'react-native';
 import { LoadingContext } from '../context/LoadingProvider';
 import { useToast } from '../component/ToastProvider';
 
-const API_URL = 'https://makemytwin.com/'; // Replace with your API URL
+const API_URL = 'http://192.168.48.74:8080'; // Replace with your API URL
 
 export const UseApi = () => {
   const { token, logout, setError } = useContext(UserContext);
@@ -27,7 +27,7 @@ export const UseApi = () => {
         headers.Authorization = `Bearer ${token}`;
       }
 
-      const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
+      const fullUrl = `${API_URL}${url}`;
       
       console.log('🔵 [API Request]');
       console.log('➡️ URL:', fullUrl);
@@ -42,6 +42,8 @@ export const UseApi = () => {
 
       });
 
+      console.log('🔵 [API Header]', headers);
+
       console.log('🟢 [API Response]');
       console.log('✅ Status:', response.status);
       
@@ -54,7 +56,6 @@ export const UseApi = () => {
       }
       const data = await response.json();
       console.log("the apis data ia : ", data);
-      console.log('📦 Response Data:', JSON.stringify(data, null, 2));
       setLoading(false); // Stop loading
       
       return data; // Return the parsed JSON data

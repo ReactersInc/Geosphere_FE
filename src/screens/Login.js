@@ -25,7 +25,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 const { width, height } = Dimensions.get('window');
 
 const Login = ({ navigation }) => {
-  const [email, setEmail] = useState('bitturai9900123@gmail.com');
+  const [email, setEmail] = useState('raivivek0902@gmail.com');
   const [password, setPassword] = useState('1234');
   const [showPassword, setShowPassword] = useState(false);
   
@@ -35,7 +35,7 @@ const Login = ({ navigation }) => {
 
   const handleLogin = async () => {
     try {
-      const response = await post('http://192.168.1.41:8080/login', { email, password });
+      const response = await post('/login', { email, password });
       
       const { userId, firstName, lastName, sub } = jwtDecode(response?.data?.token);
       

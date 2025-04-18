@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,104 +9,95 @@ import {
   StatusBar,
   TextInput,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import CustomText from '../component/CustomText';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { UseApi } from '../hooks/UseApi';
+import { transformGeofenceData } from '../../utils/transformGeofenceData';
 
-// Get device dimensions
 const { width } = Dimensions.get('window');
-
-// Expanded dummy data for geofences
-const DUMMY_GEOFENCES = [
-  {
-    id: '1',
-    geofence_name: 'Home Area',
-    radius: 200,
-    lat: 37.7749,
-    lng: -122.4194,
-    created_at: '2025-03-25T14:32:11Z',
-    active: true,
-    notifications: true,
-    color: ['#6C63FF', '#5046e5'],
-    description: 'Safe area around home',
-    alerts_count: 3,
-  },
-  {
-    id: '2',
-    geofence_name: 'Office Zone',
-    radius: 150,
-    lat: 37.7833,
-    lng: -122.4167,
-    created_at: '2025-04-01T09:15:20Z',
-    active: true,
-    notifications: true,
-    color: ['#FF6B6B', '#FF4785'],
-    description: 'Work location boundaries',
-    alerts_count: 1,
-  },
-  {
-    id: '3',
-    geofence_name: 'Park Safety Zone',
-    radius: 300,
-    lat: 37.7694,
-    lng: -122.4862,
-    created_at: '2025-04-05T17:45:33Z',
-    active: false,
-    notifications: false,
-    color: ['#4CAF50', '#2E7D32'],
-    description: 'Safe area for kids at the park',
-    alerts_count: 0,
-  },
-  {
-    id: '4',
-    geofence_name: 'School Area',
-    radius: 250,
-    lat: 37.7855,
-    lng: -122.4051,
-    created_at: '2025-03-20T08:15:22Z',
-    active: true,
-    notifications: true,
-    color: ['#FF9800', '#F57C00'],
-    description: 'School campus and surrounding area',
-    alerts_count: 2,
-  },
-  {
-    id: '5',
-    geofence_name: 'Gym Location',
-    radius: 100,
-    lat: 37.7825,
-    lng: -122.4382,
-    created_at: '2025-04-07T16:30:45Z',
-    active: true,
-    notifications: false,
-    color: ['#9C27B0', '#7B1FA2'],
-    description: 'Fitness center area',
-    alerts_count: 0,
-  },
-  {
-    id: '6',
-    geofence_name: 'Grandparents House',
-    radius: 180,
-    lat: 37.7981,
-    lng: -122.4095,
-    created_at: '2025-03-15T12:45:30Z',
-    active: false,
-    notifications: true,
-    color: ['#3F51B5', '#303F9F'],
-    description: 'Safe area around grandparents',
-    alerts_count: 0,
-  },
-];
 
 const GeofencesScreen = () => {
   const navigation = useNavigation();
-  const [geofences, setGeofences] = useState(DUMMY_GEOFENCES);
+  const { get, patch } = UseApi();
+  const [geofences, setGeofences] = useState([]);
   const [searchText, setSearchText] = useState('');
-  const [sortOption, setSortOption] = useState('name'); // 'name', 'date', 'radius'
-  const [filterActive, setFilterActive] = useState(null); // null (all), true, false
+  const [sortOption, setSortOption] = useState('name');
+  const [filterActive, setFilterActive] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
   const tabBarHeight = useBottomTabBarHeight();
+
+
+  const fetchGeofences = async () => {
+    try {
+      setRefreshing(true);
+      const response = await get('/geofence' );
+      const transformedData = transformGeofenceData(response.data.data);
+      setGeofences(transformedData);
+    } catch (error) {
+      console.error('Failed to fetch geofences:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+
+   // Initial fetch
+  useFocusEffect(
+   useCallback(() => {
+    fetchGeofences();
+   }, [])
+  );
+
+
+  const handleRefresh = () => {
+    fetchGeofences();
+  };
+
+
+  const toggleGeofenceActive = async (id) => {
+    try {
+      // Optimistic UI update
+      setGeofences(prev => 
+        prev.map(geofence => 
+          geofence.id === id 
+            ? { ...geofence, active: !geofence.active } 
+            : geofence
+        )
+      );
+      
+      // API call to update status (no body needed)
+      await patch(`/geofence/${id}/status`);
+    } catch (error) {
+      // Revert if API call fails
+      fetchGeofences();
+      console.error('Failed to update geofence status:', error);
+    }
+  };
+
+  const toggleGeofenceNotifications = async (id) => {
+    try {
+      // Optimistic UI update
+      setGeofences(prev => 
+        prev.map(geofence => 
+          geofence.id === id 
+            ? { ...geofence, notifications: !geofence.notifications } 
+            : geofence
+        )
+      );
+  
+      // API call to update notifications (no body needed)
+      await patch(`/geofence/${id}/notifications`);
+    } catch (error) {
+      // Revert if API call fails
+      fetchGeofences();
+      console.error('Failed to update notifications:', error);
+    }
+  };
+
+
   
   // Format date for display
   const formatDate = (dateString) => {
@@ -118,61 +109,36 @@ const GeofencesScreen = () => {
     });
   };
 
-  // Filter and sort geofences
   const filteredGeofences = geofences
     .filter(geofence => {
-      // Apply search text filter
       const nameMatch = geofence.geofence_name.toLowerCase().includes(searchText.toLowerCase());
       const descMatch = geofence.description.toLowerCase().includes(searchText.toLowerCase());
       const textFilter = nameMatch || descMatch;
-      
-      // Apply active/inactive filter
       const activeFilter = filterActive === null ? true : geofence.active === filterActive;
-      
       return textFilter && activeFilter;
     })
     .sort((a, b) => {
-      // Apply sorting
       switch (sortOption) {
-        case 'name':
-          return a.geofence_name.localeCompare(b.geofence_name);
-        case 'date':
-          return new Date(b.created_at) - new Date(a.created_at); // Newest first
-        case 'radius':
-          return b.radius - a.radius; // Largest first
-        default:
-          return 0;
+        case 'name': return a.geofence_name.localeCompare(b.geofence_name);
+        case 'date': return new Date(b.created_at) - new Date(a.created_at);
+        case 'radius': return b.radius - a.radius;
+        default: return 0;
       }
     });
 
-  // Toggle geofence active status
-  const toggleGeofenceActive = (id) => {
-    setGeofences(prev => 
-      prev.map(geofence => 
-        geofence.id === id 
-          ? { ...geofence, active: !geofence.active } 
-          : geofence
-      )
-    );
-  };
 
-  // Toggle geofence notifications
-  const toggleGeofenceNotifications = (id) => {
-    setGeofences(prev => 
-      prev.map(geofence => 
-        geofence.id === id 
-          ? { ...geofence, notifications: !geofence.notifications } 
-          : geofence
-      )
-    );
-  };
+
+  
+
+  
 
   // Render geofence card item
   const renderGeofenceCard = ({ item }) => (
+   
     <View style={styles.geofenceCardContainer}>
       <TouchableOpacity
         style={styles.geofenceCard}
-        onPress={() => navigation.navigate('GeoZone', { geofence: item })}>
+        onPress={() => navigation.navigate('GeoZoneScreen', { geofence: item })}>
         <LinearGradient
           colors={item.color}
           style={styles.gradientBar}
@@ -244,7 +210,7 @@ const GeofencesScreen = () => {
             </View>
             <TouchableOpacity 
               style={styles.viewButton}
-              onPress={() => navigation.navigate('GeoZone', { geofence: item })}>
+              onPress={() => navigation.navigate('GeoZoneScreen', { geofence: item })}>
               <CustomText style={styles.viewButtonText}>View Details</CustomText>
               <Icon name="chevron-right" size={16} color="#6C63FF" />
             </TouchableOpacity>
@@ -315,11 +281,10 @@ const GeofencesScreen = () => {
     <SafeAreaView style={[styles.safeArea, { paddingBottom: tabBarHeight }]}>
       <View style={styles.container}>
         <View style={styles.header}>
-          
-          <CustomText style={styles.headerTitle}>My Geofences</CustomText>
+          <CustomText style={styles.headerTitle}>My Geofences</CustomText>   
           <TouchableOpacity 
             style={styles.headerAction}
-            onPress={() => navigation.navigate('CreateGeofence')}>
+            onPress={() => navigation.navigate('CreateGeofenceScreen')}>
             <Icon name="plus" size={24} color="#6C63FF" />
           </TouchableOpacity>
         </View>
@@ -352,6 +317,8 @@ const GeofencesScreen = () => {
             keyExtractor={item => item.id}
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Icon name="map-marker-off" size={60} color="#ccc" />
@@ -362,7 +329,7 @@ const GeofencesScreen = () => {
                 {!searchText && (
                   <TouchableOpacity 
                     style={styles.createButton}
-                    onPress={() => navigation.navigate('CreateGeofence')}>
+                    onPress={() => navigation.navigate('CreateGeofenceScreen')}>
                     <Icon name="plus" size={20} color="#fff" />
                     <CustomText style={styles.createButtonText}>Create Geofence</CustomText>
                   </TouchableOpacity>
@@ -374,7 +341,7 @@ const GeofencesScreen = () => {
 
         <TouchableOpacity 
           style={styles.fab}
-          onPress={() => navigation.navigate('CreateGeofence')}>
+          onPress={() => navigation.navigate('CreateGeofenceScreen')}>
           <Icon name="plus" size={24} color="#fff" />
         </TouchableOpacity>
       </View>

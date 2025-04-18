@@ -413,8 +413,8 @@ const HomeScreen = () => {
         <View style={styles.mapPreviewContainer}>
           <TouchableOpacity 
             style={styles.mapPreview}
-            onPress={() => navigation.navigate('Map')}
-            >
+            onPress={() => navigation.navigate('LiveMapScreen')}>
+            
             <LinearGradient
               colors={['rgba(108, 99, 255, 0.8)', 'rgba(80, 70, 229, 0.9)']}
               style={styles.mapGradient}>

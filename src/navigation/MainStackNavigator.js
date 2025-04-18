@@ -8,6 +8,10 @@ import LoginScreen from '../screens/Login';
 import RegisterScreen from '../screens/Register';
 import HomeScreen from '../screens/HomeScreen';
 import LandingScreen from '../screens/LandingScreen';
+import LiveMapScreen from '../screens/LiveMapScreen';
+import CreateGeofenceScreen from '../screens/CreateGeofenceScreen';
+
+import GeoZoneScreen from '../screens/GeoZoneScreen';
 
 const Stack = createStackNavigator();
 
@@ -42,6 +46,10 @@ const MainStackNavigator = () => {
         <>
           <Stack.Screen name="MainApp" component={BottomTabNavigator} />
           <Stack.Screen name="HomeScreen" component={HomeScreen} />
+          <Stack.Screen name="LiveMapScreen" component={LiveMapScreen} />
+          <Stack.Screen name="CreateGeofenceScreen" component={CreateGeofenceScreen} />
+          
+          <Stack.Screen name="GeoZoneScreen" component={GeoZoneScreen} />
         </>
       )}
     </Stack.Navigator>
