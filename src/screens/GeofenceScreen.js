@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   StatusBar,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,22 +28,51 @@ const GeofencesScreen = () => {
   const [sortOption, setSortOption] = useState('name');
   const [filterActive, setFilterActive] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [page, setpage] = useState(0);
+const [pageSize, setPageSize] = useState(15);
+const [totalElements, setTotalElements] = useState(0);
+const [isLoadingMore, setIsLoadingMore] = useState(false);
+const [hasMore, setHasMore] = useState(true);
   const tabBarHeight = useBottomTabBarHeight();
 
 
-  const fetchGeofences = async () => {
+  const fetchGeofences = async (isRefresh = false) => {
     try {
-      setRefreshing(true);
-      const response = await get('/geofence' );
+      const currentPage = isRefresh ? 0 : page;
+      setRefreshing(isRefresh);
+      if (!isRefresh) setIsLoadingMore(true);
+  
+      const response = await get(`/geofence?page=1&pageSize=${pageSize}&sortOrder=ASC`);
+      
       const transformedData = transformGeofenceData(response?.data?.list);
-      setGeofences(transformedData);
+      setTotalElements(response?.data?.totalElements || 0);
+      
+      if (isRefresh) {
+        setGeofences(transformedData);
+        setpage(0);
+        setHasMore(true);
+      } else {
+        setGeofences(transformedData);
+      }
+      
+      // Check if there are more items to load
+      if (transformedData.length < totalElements) {
+        setHasMore(false);
+      }
     } catch (error) {
       console.error('Failed to fetch geofences:', error);
     } finally {
       setRefreshing(false);
+      setIsLoadingMore(false);
     }
   };
 
+  const handleLoadMore = () => {
+    if (!isLoadingMore && hasMore && geofences.length < totalElements) {
+      setpage(prev => prev + 1);
+      fetchGeofences();
+    }
+  };
 
    // Initial fetch
   useFocusEffect(
@@ -53,9 +83,8 @@ const GeofencesScreen = () => {
 
 
   const handleRefresh = () => {
-    fetchGeofences();
+    fetchGeofences(true);
   };
-
 
   const toggleGeofenceActive = async (id) => {
     try {
@@ -125,6 +154,10 @@ const GeofencesScreen = () => {
         default: return 0;
       }
     });
+
+
+
+    console.log("the filtered geofences are : ", filteredGeofences);
 
 
 
@@ -311,32 +344,41 @@ const GeofencesScreen = () => {
         <SortOptions />
 
         <View style={styles.listContainer}>
-          <FlatList
-            data={filteredGeofences}
-            renderItem={renderGeofenceCard}
-            keyExtractor={item => item.id}
-            contentContainerStyle={styles.list}
-            showsVerticalScrollIndicator={false}
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Icon name="map-marker-off" size={60} color="#ccc" />
-                <CustomText style={styles.emptyText}>No geofences found</CustomText>
-                <CustomText style={styles.emptySubText}>
-                  {searchText ? "Try different search terms" : "Create your first geofence"}
-                </CustomText>
-                {!searchText && (
-                  <TouchableOpacity 
-                    style={styles.createButton}
-                    onPress={() => navigation.navigate('CreateGeofenceScreen')}>
-                    <Icon name="plus" size={20} color="#fff" />
-                    <CustomText style={styles.createButtonText}>Create Geofence</CustomText>
-                  </TouchableOpacity>
-                )}
-              </View>
-            }
-          />
+        <FlatList
+  data={filteredGeofences}
+  renderItem={renderGeofenceCard}
+  keyExtractor={item => item.id}
+  contentContainerStyle={styles.list}
+  showsVerticalScrollIndicator={false}
+  refreshing={refreshing}
+  onRefresh={handleRefresh}
+  onEndReached={handleLoadMore}
+  onEndReachedThreshold={0.5}
+  ListFooterComponent={
+    isLoadingMore ? (
+      <View style={styles.loadingMoreContainer}>
+        <ActivityIndicator size="small" color="#6C63FF" />
+      </View>
+    ) : null
+  }
+  ListEmptyComponent={
+    <View style={styles.emptyContainer}>
+      <Icon name="map-marker-off" size={60} color="#ccc" />
+      <CustomText style={styles.emptyText}>No geofences found</CustomText>
+      <CustomText style={styles.emptySubText}>
+        {searchText ? "Try different search terms" : "Create your first geofence"}
+      </CustomText>
+      {!searchText && (
+        <TouchableOpacity 
+          style={styles.createButton}
+          onPress={() => navigation.navigate('CreateGeofenceScreen')}>
+          <Icon name="plus" size={20} color="#fff" />
+          <CustomText style={styles.createButtonText}>Create Geofence</CustomText>
+        </TouchableOpacity>
+      )}
+    </View>
+  }
+/>
         </View>
 
         <TouchableOpacity 
@@ -618,6 +660,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontFamily: 'Manrope-SemiBold',
     marginLeft: 8,
+  },
+
+  loadingMoreContainer: {
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   fab: {
     position: 'absolute',

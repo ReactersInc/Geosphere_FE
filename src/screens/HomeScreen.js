@@ -16,6 +16,9 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import CustomText from '../component/CustomText';
 import {  useUser } from '../context/userContext';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import LocationTracker from '../component/LocationTracker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import GeofenceCard from '../component/GeofenceCard';
 
 // Get device dimensions
 const { height, width } = Dimensions.get('window');
@@ -149,7 +152,8 @@ const HomeScreen = () => {
   const navigation = useNavigation();
   const [greeting, setGreeting] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const {user}= useUser();
+  const {user,token}= useUser();
+  
 
   const tabBarHeight= useBottomTabBarHeight();
 
@@ -176,56 +180,42 @@ const HomeScreen = () => {
     }, 1500);
   };
 
+
+  
+
+
+
+
+  
+
   // Component for rendering geofence cards
   const GeofenceSection = () => {
+    // Get the latest 4 geofences
+    const latestGeofences = [...DUMMY_GEOFENCES]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 4);
+
     return (
       <View style={styles.geofenceSection}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {DUMMY_GEOFENCES.map((geofence, index) => (
-            <TouchableOpacity
-              key={index}
+        <ScrollView 
+        
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}>
+          {latestGeofences.map((geofence) => (
+            <GeofenceCard
+              key={geofence.id}
+              geofence={geofence}
+              variant="compact"
+              onPress={() => navigation.navigate('GeoZone', { geofence })}
               style={styles.geofenceCard}
-              onPress={() => navigation.navigate('GeoZone', { geofence })}>
-              <LinearGradient
-                colors={geofence.color}
-                style={styles.gradientCard}>
-                <View style={styles.cardHeader}>
-                  <Icon name="map-marker-radius" size={24} color="#fff" />
-                  <CustomText style={styles.geofenceName}>{geofence.geofence_name}</CustomText>
-                </View>
-                <View style={styles.geofenceMetaContainer}>
-                  <View style={styles.geofenceMeta}>
-                    <Icon name="radius" size={16} color="#fff" />
-                    <CustomText style={styles.geofenceMetaText}>{geofence.radius}m</CustomText>
-                  </View>
-                  <View style={styles.geofenceMeta}>
-                    <Icon name="calendar" size={16} color="#fff" />
-                    <CustomText style={styles.geofenceMetaText}>{new Date(geofence.created_at).toLocaleDateString()}</CustomText>
-                  </View>
-                </View>
-                <View style={styles.geofenceFooter}>
-                  <View style={styles.statusBadge}>
-                    <View style={[styles.statusDot, { backgroundColor: geofence.active ? '#4CAF50' : '#FF9800' }]} />
-                    <CustomText style={styles.statusText}>{geofence.active ? 'Active' : 'Inactive'}</CustomText>
-                  </View>
-                  <TouchableOpacity style={styles.viewButton}>
-                    <CustomText style={styles.viewDetailsText}>View</CustomText>
-                    <Icon name="chevron-right" size={16} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
+            />
           ))}
-          <TouchableOpacity
+          <GeofenceCard
+            variant="add"
+            onPress={() => navigation.navigate('CreateGeofence')}
             style={styles.addGeofenceCard}
-            onPress={() => navigation.navigate('CreateGeofence')}>
-            <LinearGradient
-              colors={['#e0e0e0', '#f5f5f5']}
-              style={styles.gradientAddCard}>
-              <Icon name="plus-circle" size={40} color="#6C63FF" />
-              <CustomText style={styles.addGeofenceText}>Add New Geofence</CustomText>
-            </LinearGradient>
-          </TouchableOpacity>
+          />
         </ScrollView>
       </View>
     );
@@ -572,108 +562,15 @@ const styles = StyleSheet.create({
   geofenceSection: {
     marginVertical: 4,
   },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
   geofenceCard: {
-    width: width * 0.7,
-    height: 150,
-    borderRadius: 16,
-    overflow: 'hidden',
     marginRight: 12,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-  },
-  gradientCard: {
-    padding: 16,
-    height: '100%',
-    justifyContent: 'space-between',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  geofenceName: {
-    fontSize: 18,
-    color: '#fff',
-    fontFamily: 'Manrope-Bold',
-    marginLeft: 8,
-  },
-  geofenceMetaContainer: {
-    flexDirection: 'row',
-    marginTop: 8,
-  },
-  geofenceMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  geofenceMetaText: {
-    color: '#fff',
-    fontSize: 12,
-    fontFamily: 'Manrope-Medium',
-    marginLeft: 4,
-    opacity: 0.9,
-  },
-  geofenceFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 4,
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 12,
-    fontFamily: 'Manrope-SemiBold',
-  },
-  viewButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  viewDetailsText: {
-    color: '#fff',
-    fontSize: 14,
-    fontFamily: 'Manrope-SemiBold',
-    marginRight: 4,
   },
   addGeofenceCard: {
-    width: width * 0.35,
-    height: 150,
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginRight: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  gradientAddCard: {
-    padding: 16,
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addGeofenceText: {
-    marginTop: 8,
-    color: '#6C63FF',
-    fontSize: 14,
-    fontFamily: 'Manrope-SemiBold',
-    textAlign: 'center',
+    marginRight: 16,
   },
   // People section styles
   peopleSection: {
