@@ -14,19 +14,19 @@ import { useNavigation } from '@react-navigation/native';
 import {LinearGradient} from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import CustomText from '../component/CustomText';
-import {  useUser } from '../context/userContext';
+import { useUser } from '../context/userContext';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import LocationTracker from '../component/LocationTracker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import GeofenceCard from '../component/GeofenceCard';
+import { useGeofenceRequests, useGeofenceRequestActions } from '../hooks/useGeofenceRequests';
+import { UseApi } from '../hooks/UseApi';
+import WebSocketService from '../service/WebSocketService';
+import LocationTrackingService from '../service/LocationTrackingService';
+// import ApiClient from '../service/ApiClient';
 
 // Get device dimensions
 const { height, width } = Dimensions.get('window');
-
-
-
-
-
 
 // Dummy data for the application
 const DUMMY_USER = {
@@ -68,6 +68,55 @@ const DUMMY_GEOFENCES = [
     active: false,
     notifications: false,
     color: ['#4CAF50', '#2E7D32']
+  }
+];
+
+// Dummy data for requests
+const DUMMY_REQUESTS = [
+  {
+    id: '1',
+    type: 'connection',
+    from: {
+      id: '101',
+      name: 'Alex Rivera',
+      email: 'alex.rivera@example.com',
+      avatar: null
+    },
+    status: 'pending',
+    timestamp: '2025-05-08T14:32:11Z',
+    message: 'Hi John, I would like to connect with you on GeoTrack.'
+  },
+  {
+    id: '2',
+    type: 'geofence',
+    from: {
+      id: '102',
+      name: 'Sophia Williams',
+      email: 'sophia.w@example.com',
+      avatar: null
+    },
+    geofence: {
+      id: '201',
+      name: 'Downtown Safety Zone',
+      radius: 250,
+      color: ['#FF9800', '#F57C00']
+    },
+    status: 'pending',
+    timestamp: '2025-05-09T10:15:20Z',
+    message: 'I\'ve added you to my Downtown Safety Zone geofence for our meetup this weekend.'
+  },
+  {
+    id: '3',
+    type: 'connection',
+    from: {
+      id: '103',
+      name: 'Daniel Kim',
+      email: 'daniel.kim@example.com',
+      avatar: null
+    },
+    status: 'pending',
+    timestamp: '2025-05-07T09:45:33Z',
+    message: 'Hey, let\'s connect on GeoTrack to share our locations during the hiking trip.'
   }
 ];
 
@@ -152,13 +201,43 @@ const HomeScreen = () => {
   const navigation = useNavigation();
   const [greeting, setGreeting] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const {user,token}= useUser();
+  const { user, token } = useUser();
+  const api = UseApi();
+
+  useEffect(() => {
+    if (user && token) {
+      // Initialize location tracking service
+      LocationTrackingService.initialize(api, user);
+      
+      // Connect to WebSocket
+      WebSocketService.connect(token, user.userId);
+    }
+
+    return () => {
+      // Cleanup on unmount
+      LocationTrackingService.stopLocationTracking();
+      WebSocketService.disconnect();
+    };
+  }, [user, token]);
+  // const [pendingRequests, setPendingRequests] = useState(DUMMY_REQUESTS);
+
+
   
 
-  const tabBarHeight= useBottomTabBarHeight();
+
+  
+  const tabBarHeight = useBottomTabBarHeight();
 
 
+ 
 
+   const { 
+    requests: geofenceRequests, 
+    loading: requestsLoading, 
+    refetch: refetchRequests 
+  } = useGeofenceRequests();
+  
+  const [pendingRequests, setPendingRequests] = useState([]);
 
   // Set greeting based on time of day
   useEffect(() => {
@@ -172,6 +251,36 @@ const HomeScreen = () => {
     }
   }, []);
 
+   useEffect(() => {
+    if (geofenceRequests && geofenceRequests.length > 0) {
+      const transformedRequests = geofenceRequests.map(req => ({
+        id: req.id.toString(),
+        type: 'geofence',
+        from: {
+          id: req.creator.id.toString(),
+          name: `${req.creator.firstName} ${req.creator.lastName}`,
+          email: req.creator.email,
+          avatar: req.creator.photo
+        },
+        geofence: {
+          id: req.geofenceResponse.id.toString(),
+          name: req.geofenceResponse.name,
+          description: req.geofenceResponse.description,
+          createdAt: req.geofenceResponse.createdAt,
+          radius: 250, // Default value
+          color: ['#FF9800', '#F57C00'] // Default colors
+        },
+        status: req.responseStatus === 5 ? 'pending' : 'accepted',
+        timestamp: req.geofenceResponse.createdAt,
+        message: req.geofenceResponse.description || 'You have been invited to join this geofence.'
+      }));
+      
+      setPendingRequests(transformedRequests);
+    } else {
+      setPendingRequests([]);
+    }
+  }, [geofenceRequests]);
+
   // Simulate refresh action
   const onRefresh = () => {
     setRefreshing(true);
@@ -179,14 +288,6 @@ const HomeScreen = () => {
       setRefreshing(false);
     }, 1500);
   };
-
-
-  
-
-
-
-
-  
 
   // Component for rendering geofence cards
   const GeofenceSection = () => {
@@ -197,8 +298,8 @@ const HomeScreen = () => {
 
     return (
       <View style={styles.geofenceSection}>
+        {/* <LocationTracker token={token} userId={user?.userId}/> */}
         <ScrollView 
-        
           horizontal 
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}>
@@ -213,7 +314,7 @@ const HomeScreen = () => {
           ))}
           <GeofenceCard
             variant="add"
-            onPress={() => navigation.navigate('CreateGeofence')}
+            onPress={() => navigation.navigate('CreateGeofenceScreen')}
             style={styles.addGeofenceCard}
           />
         </ScrollView>
@@ -256,7 +357,7 @@ const HomeScreen = () => {
           })}
           <TouchableOpacity 
             style={styles.personItem}
-            onPress={() => navigation.navigate('AddPerson')}>
+            onPress={() => navigation.navigate('UserDiscoveryScreen')}>
             <View style={[styles.personCircle, { backgroundColor: '#e0e0e0' }]}>
               <Icon name="plus" size={24} color="#6C63FF" />
             </View>
@@ -319,6 +420,76 @@ const HomeScreen = () => {
     );
   };
 
+  // Component for pending requests section
+   const RequestsSection = () => {
+    if (pendingRequests.length === 0) {
+      return (
+        <View style={styles.noRequestsContainer}>
+          {requestsLoading ? (
+            <>
+              <Icon name="loading" size={36} color="#6C63FF" />
+              <CustomText style={styles.noRequestsText}>Loading requests...</CustomText>
+            </>
+          ) : (
+            <>
+              <Icon name="check-circle-outline" size={36} color="#8BC34A" />
+              <CustomText style={styles.noRequestsText}>No pending requests</CustomText>
+            </>
+          )}
+        </View>
+      );
+    }
+
+     return (
+      <View style={styles.requestsSection}>
+        {pendingRequests.slice(0, 2).map((request, index) => (
+          <TouchableOpacity
+            key={request.id}
+            style={styles.requestCard}
+            onPress={() => navigation.navigate('RequestDetailsScreen', { request })}>
+            <View style={styles.requestInfo}>
+              <View style={[styles.requestIconContainer, { 
+                backgroundColor: request.type === 'connection' ? '#6C63FF' : '#FF9800'
+              }]}>
+                <Icon 
+                  name={request.type === 'connection' ? 'account-plus' : 'map-marker-radius'} 
+                  size={16} 
+                  color="#fff" 
+                />
+              </View>
+              <View style={styles.requestDetails}>
+                <CustomText style={styles.requestTitle}>
+                  {request.type === 'connection' ? 'Connection Request' : 'Geofence Permission'}
+                </CustomText>
+                <CustomText style={styles.requestFrom} numberOfLines={1}>
+                  From: {request.from.name}
+                </CustomText>
+              </View>
+            </View>
+            <View style={styles.requestTimeContainer}>
+              <Icon name="clock-outline" size={12} color="#666" />
+              <CustomText style={styles.requestTime}>
+                {new Date(request.timestamp).toLocaleDateString([], {
+                  month: 'short',
+                  day: 'numeric'
+                })}
+              </CustomText>
+            </View>
+          </TouchableOpacity>
+        ))}
+        {pendingRequests.length > 2 && (
+          <TouchableOpacity
+            style={styles.moreRequestsButton}
+            onPress={() => navigation.navigate('AllRequestsScreen')}>
+            <CustomText style={styles.moreRequestsText}>
+              View {pendingRequests.length - 2} more requests
+            </CustomText>
+            <Icon name="chevron-right" size={16} color="#6C63FF" />
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
   // Helper function to determine battery icon
   const getBatteryIcon = (level) => {
     if (level > 75) return 'battery-high';
@@ -341,9 +512,11 @@ const HomeScreen = () => {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <CustomText style={styles.sectionTitle}>{title}</CustomText>
-          <TouchableOpacity onPress={onSeeAllPress}>
-            <CustomText style={styles.seeAll}>See all</CustomText>
-          </TouchableOpacity>
+          {onSeeAllPress && (
+            <TouchableOpacity onPress={onSeeAllPress}>
+              <CustomText style={styles.seeAll}>See all</CustomText>
+            </TouchableOpacity>
+          )}
         </View>
         <View style={styles.sectionContent}>{children}</View>
       </View>
@@ -351,6 +524,12 @@ const HomeScreen = () => {
   };
 
   const sections = [
+    {
+      id: '0',
+      title: 'Pending Requests',
+      content: <RequestsSection />,
+      onSeeAllPress: pendingRequests.length > 0 ? () => navigation.navigate('AllRequestsScreen') : null,
+    },
     {
       id: '1',
       title: 'Your Geofences',
@@ -372,10 +551,10 @@ const HomeScreen = () => {
   ];
 
   return (
-    <SafeAreaView style={[styles.safeArea,{
+    <SafeAreaView style={[styles.safeArea, {
       paddingBottom: tabBarHeight, // Add padding at the bottom to avoid overlap with the tab bar
     }]}>
-      
+      <StatusBar barStyle="dark-content" backgroundColor="#F8F9FB" />
       <View style={styles.container}>
         <View style={styles.header}>
           <View>
@@ -385,9 +564,17 @@ const HomeScreen = () => {
           <View style={styles.headerRight}>
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() => navigation.navigate('Alerts')}>
+              onPress={() => navigation.navigate('AllRequests')}>
               <Icon name="bell" size={22} color="#6C63FF" />
-              <View style={styles.notificationBadge} />
+              {pendingRequests.length > 0 && (
+                <View style={styles.notificationBadge}>
+                  {pendingRequests.length > 9 ? (
+                    <CustomText style={styles.badgeText}>9+</CustomText>
+                  ) : pendingRequests.length > 0 ? (
+                    <CustomText style={styles.badgeText}>{pendingRequests.length}</CustomText>
+                  ) : null}
+                </View>
+              )}
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.profileButton}
@@ -400,16 +587,24 @@ const HomeScreen = () => {
           </View>
         </View>
 
-        <View style={styles.mapPreviewContainer}>
+        <View style={styles.activitySummaryContainer}>
           <TouchableOpacity 
-            style={styles.mapPreview}
-            onPress={() => navigation.navigate('LiveMapScreen')}>
-            
+            style={styles.activitySummary}
+            onPress={() => navigation.navigate('GeofenceActivity')}>
             <LinearGradient
               colors={['rgba(108, 99, 255, 0.8)', 'rgba(80, 70, 229, 0.9)']}
-              style={styles.mapGradient}>
-              <Icon name="map" size={24} color="#fff" />
-              <CustomText style={styles.mapText}>View Live Map</CustomText>
+              style={styles.activityGradient}>
+              <View style={styles.activityContent}>
+                <View style={styles.activityIconContainer}>
+                  <Icon name="map-marker-path" size={24} color="#fff" />
+                </View>
+                <View style={styles.activityTextContainer}>
+                  <CustomText style={styles.activityTitle}>Geofence Activity</CustomText>
+                  <CustomText style={styles.activitySubtitle}>
+                    {DUMMY_GEOFENCES.filter(g => g.active).length} active zones • 12 events today
+                  </CustomText>
+                </View>
+              </View>
               <Icon name="chevron-right" size={20} color="#fff" />
             </LinearGradient>
           </TouchableOpacity>
@@ -430,21 +625,20 @@ const HomeScreen = () => {
         />
       </View>
     </SafeAreaView>
-
   );
 };
 
 const styles = StyleSheet.create({
+ // All your existing styles...
   safeArea: {
     flex: 1,
     backgroundColor: '#F8F9FB',
-    // paddingBottom: 26,
   },
   container: {
     flex: 1,
     backgroundColor: '#F8F9FB',
     padding: 16,
-    paddingBottom:0
+    paddingBottom: 0
   },
   header: {
     flexDirection: 'row',
@@ -482,14 +676,23 @@ const styles = StyleSheet.create({
   },
   notificationBadge: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: 4,
+    right: 4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: '#FF4785',
     borderWidth: 1,
     borderColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 8,
+    fontFamily: 'Manrope-Bold',
+    textAlign: 'center',
   },
   profileButton: {
     width: 40,
@@ -506,11 +709,11 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  mapPreviewContainer: {
+  activitySummaryContainer: {
     marginBottom: 16,
   },
-  mapPreview: {
-    height: 60,
+  activitySummary: {
+    height: 70,
     borderRadius: 16,
     overflow: 'hidden',
     elevation: 4,
@@ -519,19 +722,40 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 4,
   },
-  mapGradient: {
+  activityGradient: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
-  mapText: {
+  activityContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  activityIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  activityTextContainer: {
+    flex: 1,
+  },
+  activityTitle: {
     color: '#fff',
     fontSize: 16,
     fontFamily: 'Manrope-Bold',
-    flex: 1,
-    marginLeft: 10,
+  },
+  activitySubtitle: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+    fontFamily: 'Manrope-Medium',
+    marginTop: 2,
   },
   list: {
     paddingBottom: 16,
@@ -563,7 +787,7 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingRight: 16,
     paddingVertical: 8,
   },
   geofenceCard: {
@@ -708,6 +932,88 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Manrope-SemiBold',
     marginLeft: 8,
+  },
+  // Requests section styles
+  requestsSection: {
+    marginTop: 4,
+  },
+  requestCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  requestInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  requestIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  requestDetails: {
+    flex: 1,
+  },
+  requestTitle: {
+    fontSize: 14,
+    color: '#333',
+    fontFamily: 'Manrope-SemiBold',
+  },
+  requestFrom: {
+    fontSize: 12,
+    color: '#666',
+    fontFamily: 'Manrope-Regular',
+    marginTop: 2,
+  },
+  requestTimeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  requestTime: {
+    fontSize: 11,
+    color: '#666',
+    fontFamily: 'Manrope-Regular',
+    marginLeft: 4,
+  },
+  moreRequestsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0F2F5',
+    padding: 12,
+    borderRadius: 12,
+  },
+  moreRequestsText: {
+    fontSize: 13,
+    color: '#6C63FF',
+    fontFamily: 'Manrope-SemiBold',
+    marginRight: 4,
+  },
+  noRequestsContainer: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noRequestsText: {
+    fontSize: 14,
+    color: '#666',
+    fontFamily: 'Manrope-Medium',
+    marginTop: 8,
   },
 });
 

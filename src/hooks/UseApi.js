@@ -5,7 +5,10 @@ import { Alert } from 'react-native';
 import { LoadingContext } from '../context/LoadingProvider';
 import { useToast } from '../component/ToastProvider';
 
-const API_URL = 'http://192.168.1.41:8080'; // Replace with your API URL
+// const API_URL = 'http://3.113.180.21:8080'; 
+
+
+const API_URL = 'http://192.168.76.74:8080';
 
 export const UseApi = () => {
   const { token, logout, setError } = useContext(UserContext);
@@ -47,13 +50,7 @@ export const UseApi = () => {
       console.log('🟢 [API Response]');
       console.log('✅ Status:', response.status);
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw {
-          status: response.status,
-          data: errorData,
-        };
-      }
+     
       const data = await response.json();
       console.log("the apis data ia : ", data);
       setLoading(false); // Stop loading

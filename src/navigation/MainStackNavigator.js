@@ -13,6 +13,9 @@ import CreateGeofenceScreen from '../screens/CreateGeofenceScreen';
 
 import GeoZoneScreen from '../screens/GeoZoneScreen';
 import UserDiscoveryScreen from '../screens/UserDiscoveryScreen';
+import AddEntityToGeofenceScreen from '../screens/AddEntityToGeofenceScreen';
+import RequestDetailsScreen from '../screens/RequestDetailsScreen';
+import AllRequestsScreen from '../screens/AllRequestsScreen';
 
 const Stack = createStackNavigator();
 
@@ -44,6 +47,7 @@ const MainStackNavigator = () => {
           <Stack.Screen name="Register" component={RegisterScreen} />
         </>
       ) : (
+        
         <>
           <Stack.Screen name="MainApp" component={BottomTabNavigator} />
           <Stack.Screen name="HomeScreen" component={HomeScreen} />
@@ -52,7 +56,11 @@ const MainStackNavigator = () => {
           
           <Stack.Screen name="GeoZoneScreen" component={GeoZoneScreen} />
           <Stack.Screen name="UserDiscoveryScreen" component={UserDiscoveryScreen} />
+          <Stack.Screen name="AddEntityToGeofenceScreen" component={AddEntityToGeofenceScreen} />
+          <Stack.Screen name="RequestDetailsScreen" component={RequestDetailsScreen} />
+          <Stack.Screen name="AllRequestsScreen" component={AllRequestsScreen} />
         </>
+        
       )}
     </Stack.Navigator>
   );

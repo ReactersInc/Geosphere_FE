@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useContext } from "react";
 import {
   View,
   StyleSheet,
@@ -24,20 +24,19 @@ import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import CustomText from "../component/CustomText";
 import { UseApi } from "../hooks/UseApi";
 import { BlurView } from "expo-blur";
-import WebSocketService from '../service/WebSocketService';
+import WebSocketService from "../service/WebSocketService";
 import { useUser } from "../context/userContext";
- 
+import { LoadingContext } from "../context/LoadingProvider";
 
 const { width, height } = Dimensions.get("window");
 
 const GeoZoneScreen = ({ route }) => {
   const { geofence } = route.params;
   const navigation = useNavigation();
-  const {user,token}= useUser();
+  const { user, token } = useUser();
   const mapRef = useRef(null);
   const scrollViewRef = useRef(null);
   const { get } = UseApi();
-  const [loading, setLoading] = useState(false);
   const [deviceEntries, setDeviceEntries] = useState([]);
   const [entitiesData, setEntitiesData] = useState([]);
   const [selectedPerson, setSelectedPerson] = useState(null);
@@ -48,114 +47,104 @@ const GeoZoneScreen = ({ route }) => {
   const slideAnim = useRef(new Animated.Value(1)).current;
   const [isBottomSheetExpanded, setIsBottomSheetExpanded] = useState(true);
 
+  const {loading, setLoading}= useContext(LoadingContext);
+
   const [wsConnected, setWsConnected] = useState(false);
 
+  console.log("hello");
 
-  useEffect(() => {
-    if (!token || !user?.id) return;
-    
-    // Connect to WebSocket
-    WebSocketService.connect(token, user?.id);
-    
-    // Subscribe to location updates
-    const handleLocationUpdate = (message) => {
-      const update = JSON.parse(message.body);
-      console.log('Received location update:', update);
+useEffect(() => {
+  if (user && token) {
+    // Set up WebSocket connection callback
+    WebSocketService.setOnConnectedCallback(() => {
+      setWsConnected(true);
+      console.log("WebSocket connected in GeoZone");
       
-      // Update the relevant entity in entitiesData
-      setEntitiesData(prev => prev.map(entity => {
-        if (entity.id === update?.id) {
-          return {
-            ...entity,
-            coordinates: {
-              latitude: update.latitude,
-              longitude: update.longitude,
-            },
-            isInside: update?.currentlyInside,
-            lastUpdated: update?.lastLocationUpdateTime,
-            speed: update.speed,
-            heading: update.heading
-          };
+      // Subscribe to location updates for all users in the geofence
+      entitiesData.forEach(entity => {
+        if (entity.type === 'person') {
+          WebSocketService.subscribeToUserLocation(entity.id, handleLocationUpdate);
         }
-        return entity;
-      }));
-    };
-    
-    WebSocketService.subscribeToGeofenceEvents(user.id, handleLocationUpdate);
-    
-    return () => {
-      WebSocketService.disconnect();
-    };
-  }, [user?.token, user?.id]);
+      });
+      
+      // Subscribe to geofence updates
+      WebSocketService.subscribeToGeofenceUpdates(geofence.id, handleGeofenceUpdate);
+    });
 
-  // Mock data for entities (persons and devices)
-  // const mockEntities = [
-  //   {
-  //     id: "1",
-  //     name: "John Doe",
-  //     type: "person",
-  //     isInside: true,
-  //     lastUpdated: new Date(Date.now() - 5 * 60000),
-  //     coordinates: {
-  //       latitude: geofence.lat + 0.001,
-  //       longitude: geofence.lng + 0.002,
-  //     },
-  //     avatar: "https://randomuser.me/api/portraits/men/1.jpg",
-  //     batteryLevel: 75,
-  //   },
-  //   {
-  //     id: "2",
-  //     name: "Jane Smith",
-  //     type: "person",
-  //     isInside: false,
-  //     lastUpdated: new Date(Date.now() - 15 * 60000),
-  //     coordinates: {
-  //       latitude: geofence.lat - 0.005,
-  //       longitude: geofence.lng - 0.003,
-  //     },
-  //     avatar: "https://randomuser.me/api/portraits/women/2.jpg",
-  //     batteryLevel: 45,
-  //   },
-  //   {
-  //     id: "3",
-  //     name: "Delivery Vehicle",
-  //     type: "device",
-  //     isInside: true,
-  //     lastUpdated: new Date(Date.now() - 2 * 60000),
-  //     coordinates: {
-  //       latitude: geofence.lat + 0.0015,
-  //       longitude: geofence.lng - 0.001,
-  //     },
-  //     icon: "truck-delivery",
-  //     batteryLevel: 92,
-  //   },
-  //   {
-  //     id: "4",
-  //     name: "Smart Watch",
-  //     type: "device",
-  //     isInside: false,
-  //     lastUpdated: new Date(Date.now() - 30 * 60000),
-  //     coordinates: {
-  //       latitude: geofence.lat - 0.006,
-  //       longitude: geofence.lng + 0.004,
-  //     },
-  //     icon: "watch",
-  //     batteryLevel: 23,
-  //   },
-  //   {
-  //     id: "5",
-  //     name: "Pet Tracker",
-  //     type: "device",
-  //     isInside: true,
-  //     lastUpdated: new Date(Date.now() - 8 * 60000),
-  //     coordinates: {
-  //       latitude: geofence.lat + 0.0008,
-  //       longitude: geofence.lng + 0.0009,
-  //     },
-  //     icon: "paw",
-  //     batteryLevel: 88,
-  //   },
-  // ];
+    // const connected = WebSocketService.isConnected();
+    
+    // Only connect if not already connected
+    if (!WebSocketService.isConnectedFlag()) {
+      WebSocketService.connect(token, user.userId);
+    } else {
+      // If already connected, set up subscriptions immediately
+      setWsConnected(true);
+      entitiesData.forEach(entity => {
+        if (entity.type === 'person') {
+          WebSocketService.subscribeToUserLocation(entity.id, handleLocationUpdate);
+        }
+      });
+      WebSocketService.subscribeToGeofenceUpdates(geofence.id, handleGeofenceUpdate);
+    }
+  }
+  
+  return () => {
+    // Unsubscribe from specific topics when leaving the screen
+    entitiesData.forEach(entity => {
+      if (entity.type === 'person') {
+        WebSocketService.unsubscribe(`user-location-${entity.id}`);
+      }
+    });
+    WebSocketService.unsubscribe(`geofence-${geofence.id}`);
+  };
+}, [user, token, geofence.id, entitiesData]);
+
+
+
+const handleLocationUpdate = (locationData) => {
+  console.log("Received location update:", locationData);
+
+  const lat = Number(locationData?.location?.location?.latitude);
+  const lon = Number(locationData?.location?.location?.longitude);
+
+  if (isNaN(lat) || isNaN(lon)) {
+    console.error("Invalid coordinates received:", locationData);
+    return;
+  }
+
+  const userId = locationData?.location?.userId?.toString();
+
+  const isInside = locationData?.geofenceStatusMap?.[geofence.id];
+
+  setEntitiesData((prev) =>
+    prev.map((entity) => {
+      if (entity.id === userId) {
+        return {
+          ...entity,
+          coordinates: {
+            latitude: lat,
+            longitude: lon,
+          },
+          isInside: isInside, // set based on matched geofence ID
+          lastUpdated: new Date(locationData.location.timestamp),
+          speed: locationData.location.speed,
+          heading: locationData.location.heading,
+        };
+      }
+      return entity;
+    })
+  );
+};
+
+
+useEffect(() => {
+  console.log("entitiesData:", entitiesData);
+}, [entitiesData]);
+
+const handleGeofenceUpdate = (updateData) => {
+  console.log("Received geofence update:", updateData);
+};
+  
 
   const fetchPeopleInGeofence = async () => {
     if (!geofence || !geofence?.id) return;
@@ -167,7 +156,7 @@ const GeoZoneScreen = ({ route }) => {
       const response = await get(
         `/geofence/get-people?geofenceId=${geofence.id}`
       );
-      console.log("the people response is---------------------------------- : ", response?.data?.list);
+      
       const peopleData = response.data?.list;
 
       // console.log(peopleData, "people data from backend");
@@ -180,7 +169,9 @@ const GeoZoneScreen = ({ route }) => {
         lastUpdated: person.lastLocationUpdateTime
           ? new Date(person.lastLocationUpdateTime)
           : new Date(),
-        coordinates: person.currentLocation
+        coordinates: person.currentLocation &&
+        typeof person.currentLocation.latitude === 'number' &&
+          typeof person.currentLocation.longitude === 'number'
           ? {
               latitude: person.currentLocation.latitude,
               longitude: person.currentLocation.longitude,
@@ -190,8 +181,11 @@ const GeoZoneScreen = ({ route }) => {
         batteryLevel: Math.floor(Math.random() * 100) + 1,
         speed: person.speed,
         heading: person.heading,
-        locationExists: person.locationExists,
-      }));
+        locationExists: person.locationExists && person.currentLocation &&
+          typeof person.currentLocation.latitude === 'number' &&
+          typeof person.currentLocation.longitude === 'number',
+      }))
+      .filter((person) => person.locationExists);
 
       setEntitiesData(transformedData);
     } catch (error) {
@@ -202,12 +196,10 @@ const GeoZoneScreen = ({ route }) => {
   };
 
 
-  // console.log("the entity data is ---------------->>>>>>>>>>>>>>>>>", entitiesData);
-  // console.log("-------------------------------------------------------------------------------------------------");
 
   useEffect(() => {
     // fetchDeviceEntries();
-    fetchPeopleInGeofence(); // Replace the mock data with this
+    fetchPeopleInGeofence(); 
     handleZoomToGeofence();
   }, []);
 
@@ -252,11 +244,7 @@ const GeoZoneScreen = ({ route }) => {
     // Fetch fresh data
     fetchPeopleInGeofence();
 
-    // // Mock data refresh - In a real app, you'd fetch from API
-    // const newEntities = [...mockEntities];
-    // newEntities[1].isInside = Math.random() > 0.5;
-    // newEntities[3].isInside = Math.random() > 0.5;
-    // setEntitiesData(newEntities);
+    
 
     setTimeout(() => {
       setIsRefreshing(false);
@@ -273,7 +261,6 @@ const GeoZoneScreen = ({ route }) => {
     }
   }, [isBottomSheetExpanded]);
 
-  // Format time since update
   const formatTimeSince = (date) => {
     const seconds = Math.floor((new Date() - date) / 1000);
 
@@ -295,24 +282,7 @@ const GeoZoneScreen = ({ route }) => {
     return "Just now";
   };
 
-  // Format date for display
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  // Format time for display
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  
 
   const handleZoomToGeofence = () => {
     if (mapRef.current && geofence) {
@@ -340,7 +310,7 @@ const GeoZoneScreen = ({ route }) => {
         };
       } else {
         // For circular geofences
-        const radiusInDegrees = geofence.radius / 111000; // Rough conversion from meters to degrees
+        const radiusInDegrees = geofence.radius / 111000; 
         region = {
           latitude: geofence.lat,
           longitude: geofence.lng,
@@ -354,16 +324,20 @@ const GeoZoneScreen = ({ route }) => {
   };
 
   const zoomToEntity = (entity) => {
-    console.log("the entity in zoom to entity is : ", entity?.coordinates?.latitude, entity?.coordinates?.longitude);
-  
+    console.log(
+      "the entity in zoom to entity is : ",
+      entity?.coordinates?.latitude,
+      entity?.coordinates?.longitude
+    );
+
     if (mapRef.current && entity?.coordinates) {
       const region = {
         latitude: entity.coordinates.latitude,
         longitude: entity.coordinates.longitude,
-        latitudeDelta: 0.02, 
+        latitudeDelta: 0.02,
         longitudeDelta: 0.02,
       };
-  
+
       console.log("Zooming to region:", region);
       mapRef.current.animateToRegion(region, 500);
       setSelectedPerson(entity);
@@ -385,8 +359,10 @@ const GeoZoneScreen = ({ route }) => {
   };
 
   const getFilteredEntities = () => {
-    const allEntities = entitiesData.filter(entity => entity.locationExists && entity.coordinates);
-    
+    const allEntities = entitiesData.filter(
+      (entity) => entity.locationExists && entity.coordinates
+    );
+
     switch (entityFilter) {
       case "inside":
         return allEntities.filter((entity) => entity.isInside);
@@ -459,7 +435,7 @@ const GeoZoneScreen = ({ route }) => {
         <View style={styles.mapContainer}>
           <MapView
             ref={mapRef}
-            onMapReady={handleZoomToGeofence} 
+            onMapReady={handleZoomToGeofence}
             style={styles.map}
             provider={PROVIDER_GOOGLE}
             mapType={mapType}
@@ -469,7 +445,6 @@ const GeoZoneScreen = ({ route }) => {
               latitudeDelta: 0.05,
               longitudeDelta: 0.05,
             }}
-            
             showsUserLocation
             showsMyLocationButton={false}
             showsCompass={false}
@@ -526,7 +501,9 @@ const GeoZoneScreen = ({ route }) => {
             {getFilteredEntities().map(
               (entity) =>
                 entity.locationExists &&
-                entity.coordinates && (
+                entity.coordinates &&
+                typeof entity.coordinates.latitude === 'number' &&
+    typeof entity.coordinates.longitude === 'number' && (
                   <Marker
                     key={entity.id}
                     coordinate={entity?.coordinates}
@@ -1095,9 +1072,10 @@ const GeoZoneScreen = ({ route }) => {
               <View style={styles.actionButtonsContainer}>
                 <TouchableOpacity
                   style={[styles.actionButton, { backgroundColor: "#6C63FF" }]}
-                  onPress={() =>
-                    navigation.navigate("AddEntityToGeofence", {
+                   onPress={() =>
+                    navigation.navigate("AddEntityToGeofenceScreen", {
                       geofenceId: geofence.id,
+                      geofenceName: geofence.geofence_name, // Adding this for better UX
                     })
                   }
                 >
@@ -1110,8 +1088,9 @@ const GeoZoneScreen = ({ route }) => {
                 <TouchableOpacity
                   style={[styles.actionButton, { backgroundColor: "#FF9800" }]}
                   onPress={() =>
-                    navigation.navigate("AddDeviceToGeofence", {
+                    navigation.navigate("AddEntityToGeofenceScreen", {
                       geofenceId: geofence.id,
+                      geofenceName: geofence.geofence_name, // Adding this for better UX
                     })
                   }
                 >

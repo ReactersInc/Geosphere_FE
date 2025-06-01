@@ -78,12 +78,13 @@ const RegisterScreen = ({ navigation }) => {
       firstName: first_name,
       lastName: last_name,
       photo: photoName,
+      publicProfile: true,
     };
 
     console.log("the payload is : ", payload);
 
     try {
-      const response = await post('http://192.168.1.41:8080/auth/register-user', payload);
+      const response = await post('/auth/register-user', payload);
       console.log("Register response is ", response);
       if (response) {
         setShowVerify(true);
@@ -96,37 +97,32 @@ const RegisterScreen = ({ navigation }) => {
   };
 
   const handleResendOtp = async () => {
-    setIsLoading(true);
+
     try {
-      const response = await fetch(
-        'https://makemytwin.com/IoMTAppAPI//api/resendGeoOTP.php',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email }),
-        }
-      );
 
-      const data = await response.json();
+      const response = await post('/auth/resend-otp', { 
+        email
+      });
 
-      if (data.status === 'success') {
+      if (response) {
         Alert.alert('Success', 'OTP resent successfully');
       } else {
-        Alert.alert('Error', data.message || 'Something went wrong');
+        Alert.alert('Error', 'Failed to resend OTP');
       }
+      
     } catch (error) {
+      console.error('Error during resend OTP:', error);
       Alert.alert('Error', 'Failed to resend OTP');
-    } finally {
-      setIsLoading(false);
+      
     }
+   
+   
   };
 
   const handleVerifyOtp = async () => {
     setIsLoading(true);
     try {
-      const response = await post('http://192.168.1.41:8080/auth/verify-otp', { 
+      const response = await post('/auth/verify-otp', { 
         email, 
         otp 
       });

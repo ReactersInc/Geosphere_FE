@@ -1,71 +1,131 @@
 // services/WebSocketService.js
-import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 
 class WebSocketService {
+  static client = null;
+  static isConnected = false;
+  static onConnectedCallback = null;
+  static subscriptions = new Map();
+
   constructor() {
-    this.client = null;
-    this.subscriptions = {};
+    this.socket = null;
   }
 
-  connect = (token, userId) => {
+  static isConnectedFlag() {
+  return this.isConnected;
+}
 
-    console.log("the token and the user id are in ws service : ", token, userId);
-    const socket = new SockJS('http://192.168.1.41:8080/ws');
-    this.client = new Client({
-      webSocketFactory: () => socket,
-      connectHeaders: {
-        Authorization: `Bearer ${token}`,
-      },
-      debug: (str) => {
-        console.log('STOMP: ', str);
-      },
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
-    });
+  static connect(token, userId) {
+    if (this.isConnected) {
+      console.log('WebSocket already connected');
+      return;
+    }
 
-    this.client.onConnect = (frame) => {
-      console.log('Connected: ', frame);
+    try {
+      // Create SockJS connection
+      const socket = new SockJS('http://192.168.76.74:8080/ws');
       
-      // Subscribe to user location updates
-      this.subscribeToUserLocation(userId);
-    };
+      this.client = new Client({
+        webSocketFactory: () => socket,
+        connectHeaders: {
+          Authorization: `Bearer ${token}`,
+        },
+        debug: (str) => {
+          console.log('STOMP Debug:', str);
+        },
+        onConnect: (frame) => {
+          console.log('Connected to WebSocket:', frame);
+          this.isConnected = true;
+          
+          if (this.onConnectedCallback) {
+            this.onConnectedCallback();
+          }
+        },
+        onDisconnect: () => {
+          console.log('Disconnected from WebSocket');
+          this.isConnected = false;
+        },
+        onStompError: (frame) => {
+          console.error('STOMP Error:', frame);
+        },
+      });
 
-    this.client.onStompError = (frame) => {
-      console.error('Broker reported error: ' + frame.headers['message']);
-      console.error('Additional details: ' + frame.body);
-    };
-
-    this.client.activate();
-  };
-
-  subscribeToUserLocation = (userId) => {
-    this.subscriptions[`user_${userId}_location`] = this.client.subscribe(
-      `/topic/user/${userId}/location`,
-      (message) => {
-        const locationUpdate = JSON.parse(message.body);
-        // Handle location update (e.g., update state, show notification, etc.)
-        console.log('Location update:', locationUpdate);
-      }
-    );
-  };
-
-  subscribeToGeofenceEvents = (userId, callback) => {
-    this.subscriptions[`user_${userId}_geofence`] = this.client.subscribe(
-      `/topic/user/${userId}/geofence`,
-      (message) => {
-        callback(message);
-      }
-    );
+      this.client.activate();
+    } catch (error) {
+      console.error('Error connecting to WebSocket:', error);
+    }
   }
 
-  disconnect = () => {
+  static disconnect() {
     if (this.client) {
       this.client.deactivate();
       this.client = null;
+      this.isConnected = false;
+      this.subscriptions.clear();
     }
-  };
+  }
+
+  static setOnConnectedCallback(callback) {
+    this.onConnectedCallback = callback;
+  }
+
+  static subscribeToUserLocation(userId, callback) {
+    if (!this.isConnected || !this.client) {
+      console.error('WebSocket not connected');
+      return;
+    }
+
+    const destination = `/topic/user/${userId}/location`;
+    
+    const subscription = this.client.subscribe(destination, (message) => {
+      try {
+        console.log(`📡 Incoming message from ${destination}:`, message.body);
+        const locationData = JSON.parse(message.body);
+        console.log("📍 Parsed locationData:", locationData);
+        callback(locationData);
+      } catch (error) {
+        console.error('Error parsing location message:', error);
+      }
+    });
+
+    this.subscriptions.set(`user-location-${userId}`, subscription);
+    console.log(`Subscribed to user location: ${destination}`);
+  }
+
+  static subscribeToGeofenceUpdates(geofenceId, callback) {
+    if (!this.isConnected || !this.client) {
+      console.error('WebSocket not connected');
+      return;
+    }
+
+    const destination = `/topic/geofence/${geofenceId}`;
+    
+    const subscription = this.client.subscribe(destination, (message) => {
+      try {
+        const updateData = JSON.parse(message.body);
+        callback(updateData);
+      } catch (error) {
+        console.error('Error parsing geofence message:', error);
+      }
+    });
+
+    this.subscriptions.set(`geofence-${geofenceId}`, subscription);
+    console.log(`Subscribed to geofence updates: ${destination}`);
+  }
+
+  static unsubscribe(subscriptionKey) {
+    const subscription = this.subscriptions.get(subscriptionKey);
+    if (subscription) {
+      subscription.unsubscribe();
+      this.subscriptions.delete(subscriptionKey);
+      console.log(`Unsubscribed from: ${subscriptionKey}`);
+    }
+  }
+
+  static isConnected() {
+    return this.isConnected;
+  }
 }
 
-export default new WebSocketService();
+export default WebSocketService;

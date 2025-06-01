@@ -60,6 +60,8 @@ const Login = ({ navigation }) => {
   };
 
   const handleFCMToken = async (authToken) => {
+
+    console.log("the auth token is : ", authToken);
     console.log("fcm function running");
     try {
       const FCMData = {

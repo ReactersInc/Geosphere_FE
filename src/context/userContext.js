@@ -5,6 +5,7 @@ import messaging from '@react-native-firebase/messaging';
 import * as Notifications from 'expo-notifications';
 import DeviceInfo from 'react-native-device-info';
 import { useNavigation } from '@react-navigation/native';
+import * as SecureStore from 'expo-secure-store';
 
 // Theme Constants
 const LIGHT_THEME = 'light';

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, use } from 'react';
+import React, { useState, useEffect, useRef, use, useContext } from 'react';
 import {
   View,
   StyleSheet,
@@ -25,6 +25,7 @@ import { BlurView } from 'expo-blur';
 import { UseApi } from '../hooks/UseApi';
 import { useToast } from '../component/ToastProvider';
 import { useConfirmation } from '../component/ConfirmationProvider';
+import { LoadingContext } from '../context/LoadingProvider';
 
 // Get device dimensions
 const { width, height } = Dimensions.get('window');
@@ -41,12 +42,9 @@ const COLOR_PRESETS = [
   ['#009688', '#00796B'], // Teal
 ];
 
-// Mocked location search API - replace with a real API in production
 const searchLocations = async (query) => {
-  // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 500));
   
-  // Example search results based on query
   const results = [
     { id: '1', name: 'Central Park', address: 'New York, NY, USA', coordinates: { latitude: 40.7812, longitude: -73.9665 } },
     { id: '2', name: 'Times Square', address: 'Manhattan, NY, USA', coordinates: { latitude: 40.7580, longitude: -73.9855 } },
@@ -69,15 +67,11 @@ const CreateGeofenceScreen = () => {
 
   const {showToast}= useToast();
   const {showConfirmation}= useConfirmation();
-  
-  // Form state
-  const [geofenceName, setGeofenceName] = useState('');
+    const [geofenceName, setGeofenceName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedColor, setSelectedColor] = useState(COLOR_PRESETS[0]);
   const [activeNotifications, setActiveNotifications] = useState(true);
-  
-  // Map state
-  const [region, setRegion] = useState({
+    const [region, setRegion] = useState({
     latitude: 37.78825,
     longitude: -122.4324,
     latitudeDelta: 0.0922,
@@ -85,31 +79,24 @@ const CreateGeofenceScreen = () => {
   });
   const [markers, setMarkers] = useState([]);
   const [permissionStatus, setPermissionStatus] = useState(null);
-  const [loading, setLoading] = useState(true);
-  
-  // Search state
-  const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
-  
-  // UI state
-  const [showDetailsForm, setShowDetailsForm] = useState(false);
+    const [showDetailsForm, setShowDetailsForm] = useState(false);
   const [panelHeight] = useState(new Animated.Value(0));
   const [headerOpacity] = useState(new Animated.Value(1));
-  
-  // Get user's current location on component mount
-  useEffect(() => {
+
+  const {loading, setLoading} = useContext(LoadingContext);
+    useEffect(() => {
     (async () => {
       setLoading(true);
       
-      // Request location permissions
       const { status } = await Location.requestForegroundPermissionsAsync();
       setPermissionStatus(status);
       
       if (status === 'granted') {
         try {
-          // Get current position
           const location = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.Balanced,
           });
@@ -123,7 +110,6 @@ const CreateGeofenceScreen = () => {
           
           setRegion(initialRegion);
           
-          // Animate to user location
           if (mapRef.current) {
             mapRef.current.animateToRegion(initialRegion);
           }
@@ -141,7 +127,6 @@ const CreateGeofenceScreen = () => {
     })();
   }, []);
 
-  // Handle search input changes
   useEffect(() => {
     const handleSearch = async () => {
       if (searchQuery.length > 2) {
@@ -520,7 +505,6 @@ const CreateGeofenceScreen = () => {
           )}
         </MapView>
         
-        {/* Floating header */}
         <Animated.View style={[styles.floatingHeader, { opacity: headerOpacity }]}>
           <View style={styles.headerContent}>
             <TouchableOpacity
@@ -727,7 +711,6 @@ const CreateGeofenceScreen = () => {
           </KeyboardAvoidingView>
         </Animated.View>
         
-        {/* Create button (only shown when panel is collapsed) */}
         {!showDetailsForm && markers.length >= 3 && (
           <View style={styles.createButtonContainer}>
             <TouchableOpacity
@@ -740,7 +723,6 @@ const CreateGeofenceScreen = () => {
         )}
       </View>
       
-      {/* Search Modal */}
       {renderSearchModal()}
     </SafeAreaView>
   );

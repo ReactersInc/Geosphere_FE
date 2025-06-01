@@ -1,7 +1,7 @@
-import React from 'react';
-import { StatusBar, View, ActivityIndicator, LogBox, SafeAreaView } from 'react-native';
+// App.js - Updated version
+import React, { useEffect } from 'react';
+import { StatusBar, LogBox, SafeAreaView } from 'react-native';
 import 'react-native-get-random-values'; 
-import { NavigationContainer } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   Manrope_400Regular,
@@ -11,23 +11,30 @@ import {
   useFonts,
 } from '@expo-google-fonts/manrope';
 
-import { UserProvider, useUser } from './src/context/userContext';
-
+import { UserProvider } from './src/context/userContext';
 import ToastProvider from './src/component/ToastProvider';
 import GlobalLoader from './src/component/GlobalLoader';
 import { LoadingProvider } from './src/context/LoadingProvider';
 import SplashScreen from './src/screens/SplashScreen';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigation from './src/navigation';
 import ConfirmationProvider from './src/component/ConfirmationProvider';
-
-
+import LocationTrackingService from './src/service/LocationTrackingService';
+import WebSocketService from './src/service/WebSocketService';
 
 LogBox.ignoreAllLogs(true); 
 
-const App = () => {
+const AppContent = () => {
 
-  // const { isAuthenticated, isLoading, theme } = useUser();
+  
+  // Remove the useUser hook from here since it might cause navigation issues
+  // Move location tracking initialization to a screen component instead
+  
+  return (
+    <AppNavigation />
+  );
+};
+
+const App = () => {
   const [fontsLoaded] = useFonts({
     Manrope_Regular: Manrope_400Regular,
     Manrope_Medium: Manrope_500Medium,
@@ -38,30 +45,24 @@ const App = () => {
   if (!fontsLoaded) {
     return <SplashScreen />;
   }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <UserProvider>
-      <LoadingProvider>
-        {/* <NetworkProvider> */}
-          <SafeAreaView style={{ flex:1 }}>
-              <ConfirmationProvider>
-            <ToastProvider>
-
-             <StatusBar backgroundColor="#F8F9FB" barStyle="dark-content" />
-              
-              <AppNavigation />
-              
-              <GlobalLoader />
-              {/* <NetworkComponent /> */}
-
-            </ToastProvider>
-              </ConfirmationProvider>
+        <LoadingProvider>
+          <SafeAreaView style={{ flex: 1 }}>
+            <ConfirmationProvider>
+              <ToastProvider>
+                <StatusBar backgroundColor="#F8F9FB" barStyle="dark-content" />
+                <AppContent />
+                <GlobalLoader />
+              </ToastProvider>
+            </ConfirmationProvider>
           </SafeAreaView>
-        {/* </NetworkProvider> */}
-      </LoadingProvider>
+        </LoadingProvider>
       </UserProvider>
     </GestureHandlerRootView>
   );
-}
+};
 
 export default App;

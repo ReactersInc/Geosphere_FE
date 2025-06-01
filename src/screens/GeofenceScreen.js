@@ -42,7 +42,7 @@ const [hasMore, setHasMore] = useState(true);
       setRefreshing(isRefresh);
       if (!isRefresh) setIsLoadingMore(true);
   
-      const response = await get(`/geofence?page=1&pageSize=${pageSize}&sortOrder=ASC`);
+      const response = await get(`/geofence?page=0&pageSize=${pageSize}&sortOrder=ASC`);
       
       const transformedData = transformGeofenceData(response?.data?.list);
       setTotalElements(response?.data?.totalElements || 0);
@@ -157,7 +157,7 @@ const [hasMore, setHasMore] = useState(true);
 
 
 
-    console.log("the filtered geofences are : ", filteredGeofences);
+    // console.log("the filtered geofences are : ", filteredGeofences);
 
 
 
