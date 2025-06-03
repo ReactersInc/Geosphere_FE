@@ -40,7 +40,7 @@ const sendLocationToBackend = async (locationData) => {
     }
 
     // Replace with your actual backend URL
-    const baseURL = 'http://192.168.76.74:8080'; 
+    const baseURL = 'http://192.168.164.74:8080'; 
     
     const response = await fetch(`${baseURL}/geofence/locations/update`, {
       method: 'POST',

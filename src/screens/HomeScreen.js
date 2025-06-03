@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,8 +9,14 @@ import {
   SafeAreaView,
   StatusBar,
   Image,
+  RefreshControl,
+  ActivityIndicator,
+  PermissionsAndroid,
+  
+  Alert,
+  Linking,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {LinearGradient} from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import CustomText from '../component/CustomText';
@@ -23,7 +29,11 @@ import { useGeofenceRequests, useGeofenceRequestActions } from '../hooks/useGeof
 import { UseApi } from '../hooks/UseApi';
 import WebSocketService from '../service/WebSocketService';
 import LocationTrackingService from '../service/LocationTrackingService';
-// import ApiClient from '../service/ApiClient';
+import { transformGeofenceData } from '../../utils/transformGeofenceData';
+import { useProfile } from '../context/ProfileContext';
+import LocationPermissionService from '../service/LocationPermissionService';
+import * as Location from 'expo-location';
+import { Platform } from 'react-native';
 
 // Get device dimensions
 const { height, width } = Dimensions.get('window');
@@ -34,91 +44,6 @@ const DUMMY_USER = {
   lastName: 'Doe',
   profilePic: 'https://randomuser.me/api/portraits/men/32.jpg'
 };
-
-const DUMMY_GEOFENCES = [
-  {
-    id: '1',
-    geofence_name: 'Home Area',
-    radius: 200,
-    lat: 37.7749,
-    lng: -122.4194,
-    created_at: '2025-03-25T14:32:11Z',
-    active: true,
-    notifications: true,
-    color: ['#6C63FF', '#5046e5']
-  },
-  {
-    id: '2',
-    geofence_name: 'Office Zone',
-    radius: 150,
-    lat: 37.7833,
-    lng: -122.4167,
-    created_at: '2025-04-01T09:15:20Z',
-    active: true,
-    notifications: true,
-    color: ['#FF6B6B', '#FF4785']
-  },
-  {
-    id: '3',
-    geofence_name: 'Park Safety Zone',
-    radius: 300,
-    lat: 37.7694,
-    lng: -122.4862,
-    created_at: '2025-04-05T17:45:33Z',
-    active: false,
-    notifications: false,
-    color: ['#4CAF50', '#2E7D32']
-  }
-];
-
-// Dummy data for requests
-const DUMMY_REQUESTS = [
-  {
-    id: '1',
-    type: 'connection',
-    from: {
-      id: '101',
-      name: 'Alex Rivera',
-      email: 'alex.rivera@example.com',
-      avatar: null
-    },
-    status: 'pending',
-    timestamp: '2025-05-08T14:32:11Z',
-    message: 'Hi John, I would like to connect with you on GeoTrack.'
-  },
-  {
-    id: '2',
-    type: 'geofence',
-    from: {
-      id: '102',
-      name: 'Sophia Williams',
-      email: 'sophia.w@example.com',
-      avatar: null
-    },
-    geofence: {
-      id: '201',
-      name: 'Downtown Safety Zone',
-      radius: 250,
-      color: ['#FF9800', '#F57C00']
-    },
-    status: 'pending',
-    timestamp: '2025-05-09T10:15:20Z',
-    message: 'I\'ve added you to my Downtown Safety Zone geofence for our meetup this weekend.'
-  },
-  {
-    id: '3',
-    type: 'connection',
-    from: {
-      id: '103',
-      name: 'Daniel Kim',
-      email: 'daniel.kim@example.com',
-      avatar: null
-    },
-    status: 'pending',
-    timestamp: '2025-05-07T09:45:33Z',
-    message: 'Hey, let\'s connect on GeoTrack to share our locations during the hiking trip.'
-  }
-];
 
 const DUMMY_PEOPLE = [
   {
@@ -202,42 +127,291 @@ const HomeScreen = () => {
   const [greeting, setGreeting] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const { user, token } = useUser();
-  const api = UseApi();
-
-  useEffect(() => {
-    if (user && token) {
-      // Initialize location tracking service
-      LocationTrackingService.initialize(api, user);
-      
-      // Connect to WebSocket
-      WebSocketService.connect(token, user.userId);
-    }
-
-    return () => {
-      // Cleanup on unmount
-      LocationTrackingService.stopLocationTracking();
-      WebSocketService.disconnect();
-    };
-  }, [user, token]);
-  // const [pendingRequests, setPendingRequests] = useState(DUMMY_REQUESTS);
-
-
+  const api = UseApi(); 
+const { get, post } = api;
+  const { profile, profileLoading, profileError, refreshProfile } = useProfile();
   
-
-
+  // New state for geofences
+  const [geofences, setGeofences] = useState([]);
+  const [geofencesLoading, setGeofencesLoading] = useState(false);
   
   const tabBarHeight = useBottomTabBarHeight();
 
-
- 
-
-   const { 
+  const { 
     requests: geofenceRequests, 
     loading: requestsLoading, 
     refetch: refetchRequests 
   } = useGeofenceRequests();
   
   const [pendingRequests, setPendingRequests] = useState([]);
+
+  console.log("the geofence requests are", geofenceRequests);
+
+  // Fetch geofences function
+  const fetchGeofences = async () => {
+    try {
+      setGeofencesLoading(true);
+      const response = await get('/geofence?page=0&pageSize=4&sortOrder=DESC');
+      
+      if (response?.data?.list) {
+        const transformedData = transformGeofenceData(response.data.list);
+        setGeofences(transformedData);
+      } else {
+        setGeofences([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch geofences:', error);
+      setGeofences([]);
+    } finally {
+      setGeofencesLoading(false);
+    }
+  };
+
+  
+    console.log("the location tracking ran------------------------------------------");
+   const checkAndStartTracking = async () => {
+  try {
+    console.log('🔄 Starting location permission check...');
+    
+    // Check if location services are enabled
+    const isLocationEnabled = await Location.hasServicesEnabledAsync();
+    console.log("Location services enabled:", isLocationEnabled);
+    
+    if (!isLocationEnabled) {
+      Alert.alert(
+        "Location Services Disabled",
+        "Please enable location services to use this feature.",
+        [{ text: "OK", onPress: () => Linking.openSettings() }]
+      );
+      return;
+    }
+
+    let permissionGranted = false;
+    
+    if (Platform.OS === 'android') {
+      console.log('📱 Checking Android permissions...');
+      
+      // Check fine location permission
+      const fineLocationGranted = await PermissionsAndroid.check(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+      );
+      
+      console.log('Fine location already granted:', fineLocationGranted);
+
+      if (!fineLocationGranted) {
+        console.log('🔐 Requesting fine location permission...');
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          {
+            title: "Location Permission Required",
+            message: "This app needs access to your location to track your movements and send geofence notifications.",
+            buttonPositive: "Grant Permission",
+            buttonNegative: "Deny",
+          }
+        );
+        
+        console.log('Fine location permission result:', granted);
+        
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          Alert.alert(
+            "Permission Required",
+            "Location permission is required for this app to work properly.",
+            [
+              { text: "Open Settings", onPress: () => Linking.openSettings() },
+              { text: "Cancel", style: "cancel" },
+            ]
+          );
+          return;
+        }
+      }
+
+      // For Android 10+ (API 29), handle background location
+      if (Platform.Version >= 29) {
+        const backgroundGranted = await PermissionsAndroid.check(
+          PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION
+        );
+        
+        console.log('Background location already granted:', backgroundGranted);
+        
+        if (!backgroundGranted) {
+          Alert.alert(
+            "Background Location Required",
+            "To track your location when the app is closed, please allow 'Allow all the time' in the next permission dialog. This is required for geofence notifications.",
+            [
+              { text: "Cancel", style: "cancel" },
+              { 
+                text: "Continue", 
+                onPress: async () => {
+                  const bgGranted = await PermissionsAndroid.request(
+                    PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
+                    {
+                      title: "Background Location Permission",
+                      message: "Allow location access all the time for continuous geofence tracking.",
+                      buttonPositive: "Allow all the time",
+                      buttonNegative: "Deny",
+                    }
+                  );
+                  
+                  console.log('Background location permission result:', bgGranted);
+                  
+                  if (bgGranted === PermissionsAndroid.RESULTS.GRANTED) {
+                    permissionGranted = true;
+                    startLocationServices();
+                  } else {
+                    Alert.alert(
+                      "Limited Functionality",
+                      "Without background location access, geofence tracking will only work when the app is open. You can enable it later in Settings > Apps > [Your App] > Permissions > Location.",
+                      [
+                        { text: "Open Settings", onPress: () => Linking.openSettings() },
+                        { text: "Continue Anyway", onPress: () => startLocationServices() },
+                      ]
+                    );
+                  }
+                }
+              },
+            ]
+          );
+          return;
+        } else {
+          permissionGranted = true;
+        }
+      } else {
+        permissionGranted = true;
+      }
+      
+    } else {
+      // iOS permission handling
+      console.log('🍎 Checking iOS permissions...');
+      const permissionStatus = await Location.requestForegroundPermissionsAsync();
+      
+      if (permissionStatus.granted) {
+        const backgroundPermission = await Location.requestBackgroundPermissionsAsync();
+        console.log('iOS background permission:', backgroundPermission);
+        permissionGranted = true;
+      } else {
+        Alert.alert(
+          "Permission Required",
+          "Location permission is required for this app to work properly.",
+          [
+            { text: "Open Settings", onPress: () => Linking.openSettings() },
+            { text: "Cancel", style: "cancel" },
+          ]
+        );
+        return;
+      }
+    }
+
+    if (permissionGranted) {
+      startLocationServices();
+    }
+
+  } catch (error) {
+    console.error("❌ Failed to get location permission:", error);
+    Alert.alert(
+      "Permission Error",
+      "There was an error requesting location permissions. Please check your settings.",
+      [
+        { text: "Open Settings", onPress: () => Linking.openSettings() },
+        { text: "Cancel", style: "cancel" },
+      ]
+    );
+  }
+};
+
+const startLocationServices = () => {
+  console.log("🚀 Starting location services...");
+  
+  // Ensure we have api and user before starting
+  if (!get || !user) {
+    console.error("❌ Cannot start location services - missing API or user data");
+    return;
+  }
+
+  try {
+    // Initialize and start location tracking
+    console.log("🔧 Initializing LocationTrackingService...");
+    LocationTrackingService.initialize(api, user);
+    
+    console.log("📍 Starting location tracking...");
+    LocationTrackingService.startLocationTracking();
+
+    // Connect WebSocket
+    if (user && token) {
+      console.log("🔌 Connecting WebSocket...");
+      WebSocketService.connect(token, user.userId);
+    }
+    
+    console.log("✅ Location services started successfully");
+    
+  } catch (error) {
+    console.error("❌ Error starting location services:", error);
+  }
+};
+
+// Update the useFocusEffect to handle errors better
+useFocusEffect(
+  useCallback(() => {
+    const initializeScreen = async () => {
+      if (user && token) {
+        try {
+          console.log("🔄 HomeScreen focused - initializing...");
+          
+          // Fetch data
+          await Promise.all([
+            fetchGeofences(),
+            refetchRequests()
+          ]);
+          
+          // Start location tracking
+          await checkAndStartTracking();
+          
+          console.log("✅ HomeScreen initialization complete");
+        } catch (error) {
+          console.error("❌ Error initializing HomeScreen:", error);
+        }
+      } else {
+        console.warn("⚠️ User or token not available");
+      }
+    };
+
+    initializeScreen();
+  }, [user, token])
+);
+
+// Update the main useEffect to handle cleanup better
+useEffect(() => {
+  const initializeServices = async () => {
+    if (user && token) {
+      try {
+        console.log("🔧 Initializing services on mount...");
+        
+        // Initialize location tracking service
+        LocationTrackingService.initialize(get, user);
+        
+        // Connect to WebSocket
+        WebSocketService.connect(token, user.userId);
+        
+        console.log("✅ Services initialized successfully");
+      } catch (error) {
+        console.error("❌ Error initializing services:", error);
+      }
+    }
+  };
+
+  initializeServices();
+
+  return () => {
+    console.log("🧹 Cleaning up services...");
+    try {
+      // Cleanup on unmount
+      LocationTrackingService.stopLocationTracking();
+      WebSocketService.disconnect();
+      console.log("✅ Cleanup completed");
+    } catch (error) {
+      console.error("❌ Error during cleanup:", error);
+    }
+  };
+}, [user, token]);
 
   // Set greeting based on time of day
   useEffect(() => {
@@ -251,7 +425,7 @@ const HomeScreen = () => {
     }
   }, []);
 
-   useEffect(() => {
+  useEffect(() => {
     if (geofenceRequests && geofenceRequests.length > 0) {
       const transformedRequests = geofenceRequests.map(req => ({
         id: req.id.toString(),
@@ -267,8 +441,8 @@ const HomeScreen = () => {
           name: req.geofenceResponse.name,
           description: req.geofenceResponse.description,
           createdAt: req.geofenceResponse.createdAt,
-          radius: 250, // Default value
-          color: ['#FF9800', '#F57C00'] // Default colors
+          radius: 250,
+          color: ['#FF9800', '#F57C00']
         },
         status: req.responseStatus === 5 ? 'pending' : 'accepted',
         timestamp: req.geofenceResponse.createdAt,
@@ -281,34 +455,59 @@ const HomeScreen = () => {
     }
   }, [geofenceRequests]);
 
-  // Simulate refresh action
-  const onRefresh = () => {
+  // Enhanced refresh function
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => {
+    try {
+      await Promise.all([
+        fetchGeofences(),
+        refetchRequests()
+      ]);
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
       setRefreshing(false);
-    }, 1500);
-  };
+    }
+  }, []);
 
-  // Component for rendering geofence cards
+  // Updated GeofenceSection component
   const GeofenceSection = () => {
-    // Get the latest 4 geofences
-    const latestGeofences = [...DUMMY_GEOFENCES]
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      .slice(0, 4);
+    if (geofencesLoading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color="#6C63FF" />
+          <CustomText style={styles.loadingText}>Loading geofences...</CustomText>
+        </View>
+      );
+    }
+
+    if (geofences.length === 0) {
+      return (
+        <View style={styles.emptyGeofenceContainer}>
+          <Icon name="map-marker-off" size={36} color="#ccc" />
+          <CustomText style={styles.emptyGeofenceText}>No geofences yet</CustomText>
+          <TouchableOpacity 
+            style={styles.createFirstGeofenceButton}
+            onPress={() => navigation.navigate('CreateGeofenceScreen')}>
+            <Icon name="plus" size={16} color="#6C63FF" />
+            <CustomText style={styles.createFirstGeofenceText}>Create your first geofence</CustomText>
+          </TouchableOpacity>
+        </View>
+      );
+    }
 
     return (
       <View style={styles.geofenceSection}>
-        {/* <LocationTracker token={token} userId={user?.userId}/> */}
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}>
-          {latestGeofences.map((geofence) => (
+          {geofences.map((geofence) => (
             <GeofenceCard
               key={geofence.id}
               geofence={geofence}
               variant="compact"
-              onPress={() => navigation.navigate('GeoZone', { geofence })}
+              onPress={() => navigation.navigate('GeoZoneScreen', { geofence })}
               style={styles.geofenceCard}
             />
           ))}
@@ -368,6 +567,8 @@ const HomeScreen = () => {
     );
   };
 
+   
+
   // Component for trackers section
   const TrackersSection = () => {
     return (
@@ -421,13 +622,13 @@ const HomeScreen = () => {
   };
 
   // Component for pending requests section
-   const RequestsSection = () => {
+  const RequestsSection = () => {
     if (pendingRequests.length === 0) {
       return (
         <View style={styles.noRequestsContainer}>
           {requestsLoading ? (
             <>
-              <Icon name="loading" size={36} color="#6C63FF" />
+              <ActivityIndicator size="small" color="#6C63FF" />
               <CustomText style={styles.noRequestsText}>Loading requests...</CustomText>
             </>
           ) : (
@@ -440,7 +641,7 @@ const HomeScreen = () => {
       );
     }
 
-     return (
+    return (
       <View style={styles.requestsSection}>
         {pendingRequests.slice(0, 2).map((request, index) => (
           <TouchableOpacity
@@ -490,6 +691,7 @@ const HomeScreen = () => {
       </View>
     );
   };
+
   // Helper function to determine battery icon
   const getBatteryIcon = (level) => {
     if (level > 75) return 'battery-high';
@@ -523,19 +725,22 @@ const HomeScreen = () => {
     );
   };
 
+  // Updated sections array with conditional rendering
   const sections = [
-    {
+    // Only show pending requests if there are any or if loading
+    ...(pendingRequests.length > 0 || requestsLoading ? [{
       id: '0',
       title: 'Pending Requests',
       content: <RequestsSection />,
       onSeeAllPress: pendingRequests.length > 0 ? () => navigation.navigate('AllRequestsScreen') : null,
-    },
-    {
+    }] : []),
+    // Only show geofences section if there are geofences or if loading
+    ...(geofences.length > 0 || geofencesLoading ? [{
       id: '1',
       title: 'Your Geofences',
       content: <GeofenceSection />,
-      onSeeAllPress: () => navigation.navigate('Geofences'),
-    },
+      onSeeAllPress: geofences.length > 0 ? () => navigation.navigate('Geofences') : null,
+    }] : []),
     {
       id: '2',
       title: 'People',
@@ -552,14 +757,14 @@ const HomeScreen = () => {
 
   return (
     <SafeAreaView style={[styles.safeArea, {
-      paddingBottom: tabBarHeight, // Add padding at the bottom to avoid overlap with the tab bar
+      paddingBottom: tabBarHeight,
     }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8F9FB" />
       <View style={styles.container}>
         <View style={styles.header}>
           <View>
             <CustomText style={styles.greeting}>{greeting}</CustomText>
-            <CustomText style={styles.name}>{`${DUMMY_USER.firstName} ${DUMMY_USER.lastName}`}</CustomText>
+            <CustomText style={styles.name}>{`${profile?.firstName} ${profile?.lastName}`}</CustomText>
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity
@@ -601,7 +806,7 @@ const HomeScreen = () => {
                 <View style={styles.activityTextContainer}>
                   <CustomText style={styles.activityTitle}>Geofence Activity</CustomText>
                   <CustomText style={styles.activitySubtitle}>
-                    {DUMMY_GEOFENCES.filter(g => g.active).length} active zones • 12 events today
+                    {geofences.filter(g => g.active).length} active zones • 12 events today
                   </CustomText>
                 </View>
               </View>
@@ -622,6 +827,14 @@ const HomeScreen = () => {
           keyExtractor={item => item.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#6C63FF']}
+              tintColor="#6C63FF"
+            />
+          }
         />
       </View>
     </SafeAreaView>
@@ -629,7 +842,6 @@ const HomeScreen = () => {
 };
 
 const styles = StyleSheet.create({
- // All your existing styles...
   safeArea: {
     flex: 1,
     backgroundColor: '#F8F9FB',
@@ -795,6 +1007,49 @@ const styles = StyleSheet.create({
   },
   addGeofenceCard: {
     marginRight: 16,
+  },
+  // Loading and empty states
+  loadingContainer: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666',
+    fontFamily: 'Manrope-Medium',
+    marginLeft: 8,
+  },
+  emptyGeofenceContainer: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyGeofenceText: {
+    fontSize: 16,
+    color: '#666',
+    fontFamily: 'Manrope-Medium',
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  createFirstGeofenceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0EEFF',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  createFirstGeofenceText: {
+    fontSize: 14,
+    color: '#6C63FF',
+    fontFamily: 'Manrope-SemiBold',
+    marginLeft: 8,
   },
   // People section styles
   peopleSection: {
@@ -1008,12 +1263,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
   },
   noRequestsText: {
     fontSize: 14,
     color: '#666',
     fontFamily: 'Manrope-Medium',
-    marginTop: 8,
+    marginLeft: 8,
   },
 });
 

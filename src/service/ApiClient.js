@@ -57,7 +57,7 @@ class ApiClient {
   
   constructor() {
     const baseURL = __DEV__ 
-      ? 'http://192.168.76.74:8080' 
+      ? 'http://192.168.164.74:8080' 
       : 'https://your-production-domain.com';
       
     this.client = axios.create({

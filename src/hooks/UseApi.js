@@ -8,12 +8,11 @@ import { useToast } from '../component/ToastProvider';
 // const API_URL = 'http://3.113.180.21:8080'; 
 
 
-const API_URL = 'http://192.168.76.74:8080';
+const API_URL = 'http://192.168.164.74:8080';
 
 export const UseApi = () => {
   const { token, logout, setError } = useContext(UserContext);
   const { setLoading } = useContext(LoadingContext); 
-  const navigation = useNavigation();
   const interceptorsAdded = useRef(false);
 
   const {showToast}= useToast();

@@ -24,7 +24,7 @@ class WebSocketService {
 
     try {
       // Create SockJS connection
-      const socket = new SockJS('http://192.168.76.74:8080/ws');
+      const socket = new SockJS('http://192.168.164.74:8080/ws');
       
       this.client = new Client({
         webSocketFactory: () => socket,

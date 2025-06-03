@@ -68,7 +68,7 @@ useEffect(() => {
       });
       
       // Subscribe to geofence updates
-      WebSocketService.subscribeToGeofenceUpdates(geofence.id, handleGeofenceUpdate);
+      WebSocketService.subscribeToGeofenceUpdates(geofence?.id, handleGeofenceUpdate);
     });
 
     // const connected = WebSocketService.isConnected();

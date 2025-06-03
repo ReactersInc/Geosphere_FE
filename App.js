@@ -20,6 +20,7 @@ import AppNavigation from './src/navigation';
 import ConfirmationProvider from './src/component/ConfirmationProvider';
 import LocationTrackingService from './src/service/LocationTrackingService';
 import WebSocketService from './src/service/WebSocketService';
+import { ProfileProvider } from './src/context/ProfileContext';
 
 LogBox.ignoreAllLogs(true); 
 
@@ -50,15 +51,17 @@ const App = () => {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <UserProvider>
         <LoadingProvider>
+        
+              <ToastProvider>
           <SafeAreaView style={{ flex: 1 }}>
             <ConfirmationProvider>
-              <ToastProvider>
                 <StatusBar backgroundColor="#F8F9FB" barStyle="dark-content" />
                 <AppContent />
                 <GlobalLoader />
-              </ToastProvider>
             </ConfirmationProvider>
           </SafeAreaView>
+              </ToastProvider>
+        
         </LoadingProvider>
       </UserProvider>
     </GestureHandlerRootView>

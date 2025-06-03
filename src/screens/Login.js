@@ -1,4 +1,3 @@
-// screens/Login.js
 import React, { useState, useContext } from 'react';
 import {
   View,
@@ -17,6 +16,7 @@ import { CommonActions, StackActions } from '@react-navigation/native';
 import { RFPercentage, RFValue } from 'react-native-responsive-fontsize';
 import CustomText from '../component/CustomText';
 import { useUser } from '../context/userContext';
+import { useProfile } from '../context/ProfileContext'; // Add this import
 import { UseApi } from '../hooks/UseApi';
 import { LoadingContext } from '../context/LoadingProvider';
 import { jwtDecode } from 'jwt-decode';
@@ -33,6 +33,7 @@ const Login = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   
   const { login, deviceId, fcmToken } = useUser();
+  const { fetchProfile } = useProfile(); // Add this line
   const { get, post } = UseApi();
   const { loading } = useContext(LoadingContext);
 
@@ -51,16 +52,21 @@ const Login = ({ navigation }) => {
         email: email,
       };
 
-      login(userData, response?.data?.token);
+      // Login user first
+      await login(userData, response?.data?.token);
 
+      // Send FCM token
       await handleFCMToken(response?.data?.token);
+
+      // Profile will be automatically fetched by ProfileContext after login
+      // No need to manually call fetchProfile here as it's handled in useEffect
+
     } catch (error) {
       Alert.alert('Error', 'Something went wrong. Please try again later.');
     }
   };
 
   const handleFCMToken = async (authToken) => {
-
     console.log("the auth token is : ", authToken);
     console.log("fcm function running");
     try {
@@ -74,8 +80,11 @@ const Login = ({ navigation }) => {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${authToken}`,
       };
+
+
+      console.log("the fcm token is : ", fcmToken);
   
-      const response = await fetch(`${API_BASE_URL}/fcm-token`, {
+      const response = await fetch(`${API_BASE_URL}/notification/fcm-token`, {
         method: 'POST',
         headers,
         body: JSON.stringify(FCMData),
@@ -158,10 +167,7 @@ const Login = ({ navigation }) => {
 
           <TouchableOpacity 
             style={[styles.loginButton, loading && styles.disabledButton]} 
-            onPress={() => {
-              handleLogin();
-              handleFCMToken();
-            }}
+            onPress={handleLogin}
             disabled={loading}>
             <LinearGradient
               colors={['#6C63FF', '#5046e5']}
