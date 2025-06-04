@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "25489263765",
-    "project_id": "geofencing-8b17a",
-    "storage_bucket": "geofencing-8b17a.firebasestorage.app"
+    "project_number": "111044745562",
+    "project_id": "geosphere-4e286",
+    "storage_bucket": "geosphere-4e286.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:25489263765:android:818d9b0d783cf5b7a99f9c",
+        "mobilesdk_app_id": "1:111044745562:android:e41625f4b5c5e3cee67b63",
         "android_client_info": {
           "package_name": "com.tri_Dev.GeoSphere"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBnQqdiV4eeAXUC1uGpI7zUq56UaMhDkV0"
+          "current_key": "AIzaSyC3Bgs7cDBuCSMxnHqERXKtepCu9atIxh0"
         }
       ],
       "services": {

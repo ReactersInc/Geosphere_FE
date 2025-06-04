@@ -1,6 +1,7 @@
 // service/ApiClient.js - Enhanced version
 import axios from 'axios';
 import { Platform } from 'react-native';
+import { API_BASE_URL } from '../config/constant';
 
 class ApiClient {
   static instance = null;
@@ -57,7 +58,7 @@ class ApiClient {
   
   constructor() {
     const baseURL = __DEV__ 
-      ? 'http://192.168.164.74:8080' 
+      ? `${API_BASE_URL}` 
       : 'https://your-production-domain.com';
       
     this.client = axios.create({

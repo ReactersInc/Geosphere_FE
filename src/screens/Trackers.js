@@ -1,554 +1,346 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Dimensions,
-  SafeAreaView,
-  StatusBar,
-  Image,
   TextInput,
-  ScrollView,
+  ActivityIndicator,
+  RefreshControl,
+  SafeAreaView
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import CustomText from '../component/CustomText';
+import { useUser } from '../context/userContext';
+import { UseApi } from '../hooks/UseApi';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-
-// Get device dimensions
-const { height, width } = Dimensions.get('window');
-
-// Dummy data for trackers
-const DUMMY_TRACKERS = [
-  {
-    id: '1',
-    name: 'Personal Tracker',
-    device_id: 'PT-2873',
-    battery: 85,
-    active: true,
-    last_ping: '2025-04-11T09:55:12Z',
-    location: {
-      lat: 37.7749,
-      lng: -122.4194,
-      address: '123 Market St, San Francisco, CA'
-    },
-    color: ['#6C63FF', '#5046e5']
-  },
-  {
-    id: '2',
-    name: 'Keychain Tracker',
-    device_id: 'KT-9621',
-    battery: 62,
-    active: true,
-    last_ping: '2025-04-11T08:30:45Z',
-    location: {
-      lat: 37.7833,
-      lng: -122.4167,
-      address: '456 Mission St, San Francisco, CA'
-    },
-    color: ['#FF6B6B', '#FF4785']
-  },
-  {
-    id: '3',
-    name: 'Backpack Tag',
-    device_id: 'BT-4517',
-    battery: 24,
-    active: false,
-    last_ping: '2025-04-10T17:15:22Z',
-    location: {
-      lat: 37.7694,
-      lng: -122.4862,
-      address: '789 Oak St, San Francisco, CA'
-    },
-    color: ['#4CAF50', '#2E7D32']
-  },
-  {
-    id: '4',
-    name: 'Wallet Finder',
-    device_id: 'WF-1289',
-    battery: 91,
-    active: true,
-    last_ping: '2025-04-11T10:12:33Z',
-    location: {
-      lat: 37.7835,
-      lng: -122.4084,
-      address: '101 Pine St, San Francisco, CA'
-    },
-    color: ['#FF9800', '#F57C00']
-  },
-  {
-    id: '5',
-    name: 'Bike Tracker',
-    device_id: 'BK-7634',
-    battery: 45,
-    active: true,
-    last_ping: '2025-04-11T07:40:18Z',
-    location: {
-      lat: 37.7785,
-      lng: -122.4256,
-      address: '222 Howard St, San Francisco, CA'
-    },
-    color: ['#9C27B0', '#7B1FA2']
-  }
-];
+import { LinearGradient } from 'expo-linear-gradient';
 
 const TrackerScreen = () => {
   const navigation = useNavigation();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filteredTrackers, setFilteredTrackers] = useState(DUMMY_TRACKERS);
-  const [selectedFilter, setSelectedFilter] = useState('all');
+  const { user, token } = useUser();
+  const api = UseApi();
   const tabBarHeight = useBottomTabBarHeight();
 
-  // Filter trackers based on search query and filter type
-  useEffect(() => {
-    let result = DUMMY_TRACKERS;
-    
-    // Apply search filter
-    if (searchQuery) {
-      result = result.filter(
-        tracker => 
-          tracker.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-          tracker.device_id.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredGeofences, setFilteredGeofences] = useState([]);
+  const [selectedFilter, setSelectedFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [profileData, setProfileData] = useState(null);
+
+  const geofenceGradients = [
+  ['#6C63FF', '#5046e5'],
+  ['#FF6B6B', '#FF4785'],
+  ['#4CAF50', '#2E7D32'],
+  ['#9C27B0', '#7B1FA2'],
+  ['#F06292', '#BA68C8'],
+];
+
+function getGeofenceGradient(index) {
+  return geofenceGradients[index % geofenceGradients.length];
+}
+
+  const fetchProfileData = async () => {
+    try {
+      const response = await api.get('/user');
+      if (response.data) {
+        setProfileData(response.data);
+        filterGeofences(response.data.userGeofenceDetails.inWitchGeofence, searchQuery, selectedFilter);
+      }
+    } catch (error) {
+      console.error('Failed to fetch profile data:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    
-    // Apply status filter
-    if (selectedFilter === 'active') {
-      result = result.filter(tracker => tracker.active);
-    } else if (selectedFilter === 'inactive') {
-      result = result.filter(tracker => !tracker.active);
-    } else if (selectedFilter === 'low_battery') {
-      result = result.filter(tracker => tracker.battery < 30);
-    }
-    
-    setFilteredTrackers(result);
-  }, [searchQuery, selectedFilter]);
-
-  // Helper function to determine battery icon
-  const getBatteryIcon = (level) => {
-    if (level > 75) return 'battery-high';
-    if (level > 50) return 'battery-medium';
-    if (level > 25) return 'battery-low';
-    return 'battery-alert';
   };
 
-  // Helper function to determine battery color
-  const getBatteryColor = (level) => {
-    if (level > 75) return '#4CAF50';
-    if (level > 50) return '#8BC34A';
-    if (level > 25) return '#FF9800';
-    return '#F44336';
-  };
-
-  // Format date for display
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  // Component for filter options
-  const FilterOptions = () => {
-    const filters = [
-      { id: 'all', name: 'All', icon: 'view-grid' },
-      { id: 'active', name: 'Active', icon: 'check-circle' },
-      { id: 'inactive', name: 'Inactive', icon: 'close-circle' },
-      { id: 'low_battery', name: 'Low Battery', icon: 'battery-alert' },
-    ];
-
-    return (
-      <View style={styles.filterContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {filters.map((filter) => (
-            <TouchableOpacity
-              key={filter.id}
-              style={[
-                styles.filterButton,
-                selectedFilter === filter.id && styles.filterButtonActive,
-              ]}
-              onPress={() => setSelectedFilter(filter.id)}>
-              <Icon
-                name={filter.icon}
-                size={18}
-                color={selectedFilter === filter.id ? '#fff' : '#6C63FF'}
-                style={styles.filterIcon}
-              />
-              <CustomText
-                style={[
-                  styles.filterText,
-                  selectedFilter === filter.id && styles.filterTextActive,
-                ]}>
-                {filter.name}
-              </CustomText>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+  const filterGeofences = (geofences, query, filterType) => {
+    let filtered = geofences.filter(geofence =>
+      geofence.name.toLowerCase().includes(query.toLowerCase()) ||
+      geofence.description.toLowerCase().includes(query.toLowerCase())
     );
+
+    switch(filterType) {
+      case 'active':
+        filtered = filtered.filter(g => g.status === 'active');
+        break;
+      case 'inactive':
+        filtered = filtered.filter(g => g.status === 'inactive');
+        break;
+    }
+
+    setFilteredGeofences(filtered);
   };
 
-  // Render individual tracker item
-  const renderTrackerItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.trackerCard}
-      onPress={() => navigation.navigate('TrackerDetails', { tracker: item })}>
-      <LinearGradient
-        colors={item.color}
-        style={styles.trackerColorBand}
-      />
-      <View style={styles.trackerContent}>
-        <View style={styles.trackerHeader}>
-          <View style={styles.trackerTitleSection}>
-            <CustomText style={styles.trackerName}>{item.name}</CustomText>
-            <CustomText style={styles.trackerId}>ID: {item.device_id}</CustomText>
-          </View>
-          <View style={styles.trackerStatusSection}>
-            <View style={styles.batteryContainer}>
-              <Icon
-                name={getBatteryIcon(item.battery)}
-                size={18}
-                color={getBatteryColor(item.battery)}
-              />
-              <CustomText style={[styles.batteryText, { color: getBatteryColor(item.battery) }]}>
-                {item.battery}%
-              </CustomText>
-            </View>
-            <View style={[styles.statusBadge, { backgroundColor: item.active ? 'rgba(76, 175, 80, 0.1)' : 'rgba(255, 152, 0, 0.1)' }]}>
-              <View style={[styles.statusDot, { backgroundColor: item.active ? '#4CAF50' : '#FF9800' }]} />
-              <CustomText style={[styles.statusText, { color: item.active ? '#4CAF50' : '#FF9800' }]}>
-                {item.active ? 'Active' : 'Inactive'}
-              </CustomText>
-            </View>
-          </View>
-        </View>
-        
-        <View style={styles.trackerDetails}>
-          <View style={styles.locationContainer}>
-            <Icon name="map-marker" size={16} color="#666" />
-            <CustomText style={styles.locationText} numberOfLines={1}>
-              {item.location.address}
-            </CustomText>
-          </View>
-          <View style={styles.timeContainer}>
-            <Icon name="clock-outline" size={16} color="#666" />
-            <CustomText style={styles.timeText}>
-              Last updated: {formatDate(item.last_ping)}
-            </CustomText>
+  useFocusEffect(
+    useCallback(() => {
+      fetchProfileData();
+    }, [])
+  );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchProfileData();
+  }, []);
+
+  const renderGeofenceItem = ({ item, index }) => (
+  <TouchableOpacity
+    style={styles.geofenceCardWrapper}
+    onPress={() =>
+          navigation.navigate("TrackedGeofenceScreen", {
+            geofenceId: item?.geofenceId,
+          })
+        }
+    activeOpacity={0.9}
+  >
+    <LinearGradient
+      colors={getGeofenceGradient(index)}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.geofenceCardGradient}
+    >
+      <View style={styles.geofenceCardContent}>
+        <View style={styles.geofenceHeader}>
+          <Icon name="map-marker-radius" size={24} color="#fff" />
+          <View style={styles.geofenceInfo}>
+            <CustomText style={styles.geofenceName}>{item.name}</CustomText>
+            <CustomText style={styles.geofenceId}>ID: {item.geofenceId}</CustomText>
           </View>
         </View>
-        
-        <View style={styles.trackerActions}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('Map', { tracker: item })}>
-            <Icon name="map" size={20} color="#6C63FF" />
-            <CustomText style={styles.actionText}>Locate</CustomText>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => {/* Sound alert functionality */}}>
-            <Icon name="bell-ring" size={20} color="#6C63FF" />
-            <CustomText style={styles.actionText}>Alert</CustomText>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('TrackerSettings', { tracker: item })}>
-            <Icon name="cog" size={20} color="#6C63FF" />
-            <CustomText style={styles.actionText}>Settings</CustomText>
-          </TouchableOpacity>
+        <CustomText style={styles.geofenceDescription}>{item.description}</CustomText>
+        <View style={styles.geofenceStats}>
+          <View style={styles.statItem}>
+            <Icon name="account-group" size={16} color="#fff" />
+            <CustomText style={styles.statText}>
+              {profileData?.userGeofenceDetails.totalUsersInGeofence} Members
+            </CustomText>
+          </View>
+          <View style={styles.statItem}>
+            <Icon name="connection" size={16} color="#fff" />
+            <CustomText style={styles.statText}>
+              {profileData?.userGeofenceDetails.totalConnections} Connections
+            </CustomText>
+          </View>
         </View>
       </View>
+    </LinearGradient>
+  </TouchableOpacity>
+);
+
+  const FilterButton = ({ icon, label, value }) => (
+    <TouchableOpacity
+      style={[styles.filterButton, selectedFilter === value && styles.activeFilter]}
+      onPress={() => {
+        setSelectedFilter(value);
+        filterGeofences(profileData?.userGeofenceDetails.inWitchGeofence, searchQuery, value);
+      }}>
+      <Icon name={icon} size={20} color={selectedFilter === value ? '#FFF' : '#6C63FF'} />
+      <CustomText style={[styles.filterText, selectedFilter === value && styles.activeFilterText]}>
+        {label}
+      </CustomText>
     </TouchableOpacity>
   );
 
-  // Render placeholder when no trackers are found
-  const renderEmptyList = () => (
-    <View style={styles.emptyContainer}>
-      <Icon name="radar-off" size={60} color="#ccc" />
-      <CustomText style={styles.emptyTitle}>No trackers found</CustomText>
-      <CustomText style={styles.emptyText}>
-        {searchQuery 
-          ? "Try a different search term or filter" 
-          : "Add your first tracker to start tracking your important items"}
-      </CustomText>
-    </View>
-  );
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6C63FF" />
+      </View>
+    );
+  }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { paddingBottom: tabBarHeight }]}>
-      
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <CustomText style={styles.headerTitle}>Your Trackers</CustomText>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => navigation.navigate('AddTracker')}>
-            <Icon name="plus" size={22} color="#6C63FF" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.searchContainer}>
-          <Icon name="magnify" size={20} color="#666" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search trackers by name or ID"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor="#999"
-          />
-          {searchQuery !== '' && (
-            <TouchableOpacity
-              style={styles.clearButton}
-              onPress={() => setSearchQuery('')}>
-              <Icon name="close" size={18} color="#999" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        <FilterOptions />
-
-        <FlatList
-          data={filteredTrackers}
-          renderItem={renderTrackerItem}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={renderEmptyList}
-        />
+    <SafeAreaView style={[styles.container, { paddingBottom: tabBarHeight }]}>
+      <View style={styles.header}>
+        <CustomText style={styles.title}>Zones Tracking You</CustomText>
+        {/* <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => navigation.navigate('CreateGeofenceScreen')}>
+          <Icon name="plus" size={24} color="#6C63FF" />
+        </TouchableOpacity> */}
       </View>
+
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search geofences..."
+          value={searchQuery}
+          onChangeText={(text) => {
+            setSearchQuery(text);
+            filterGeofences(profileData?.userGeofenceDetails.inWitchGeofence, text, selectedFilter);
+          }}
+          placeholderTextColor="#999"
+        />
+        <Icon name="magnify" size={20} color="#666" style={styles.searchIcon} />
+      </View>
+
+      <View style={styles.filterContainer}>
+        <FilterButton icon="view-grid" label="All" value="all" />
+        <FilterButton icon="check-circle" label="Active" value="active" />
+        <FilterButton icon="close-circle" label="Inactive" value="inactive" />
+      </View>
+
+      <FlatList
+        data={filteredGeofences}
+        renderItem={renderGeofenceItem}
+        keyExtractor={item => item.geofenceId.toString()}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#6C63FF']}
+          />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Icon name="map-marker-off" size={48} color="#CCC" />
+            <CustomText style={styles.emptyText}>
+              {searchQuery ? 'No matching geofences found' : 'No geofences available'}
+            </CustomText>
+          </View>
+        }
+      />
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#F8F9FB',
-  },
   container: {
     flex: 1,
     backgroundColor: '#F8F9FB',
-    padding: 16,
+    padding: 16
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
-    paddingVertical: 8,
+    alignItems: 'center',
+    marginBottom: 20
   },
-  headerTitle: {
+  title: {
     fontSize: 24,
-    color: '#333',
     fontFamily: 'Manrope-Bold',
+    color: '#333'
   },
-  iconButton: {
+  addButton: {
     padding: 8,
-    backgroundColor: '#fff',
     borderRadius: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    backgroundColor: '#FFF',
+    elevation: 2
   },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 12,
     marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  searchIcon: {
-    marginRight: 8,
+    position: 'relative'
   },
   searchInput: {
-    flex: 1,
-    height: 48,
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 16,
+    paddingLeft: 48,
     fontFamily: 'Manrope-Medium',
     fontSize: 14,
-    color: '#333',
+    color: '#333'
   },
-  clearButton: {
-    padding: 6,
+  searchIcon: {
+    position: 'absolute',
+    left: 16,
+    top: 18
   },
   filterContainer: {
-    marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16
   },
   filterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 10,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 1,
-  },
-  filterButtonActive: {
-    backgroundColor: '#6C63FF',
-  },
-  filterIcon: {
-    marginRight: 6,
-  },
-  filterText: {
-    fontSize: 14,
-    color: '#6C63FF',
-    fontFamily: 'Manrope-SemiBold',
-  },
-  filterTextActive: {
-    color: '#fff',
-  },
-  list: {
-    paddingBottom: 16,
-  },
-  trackerCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginBottom: 16,
-    overflow: 'hidden',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    flexDirection: 'row',
-  },
-  trackerColorBand: {
-    width: 6,
-    height: '100%',
-  },
-  trackerContent: {
-    flex: 1,
-    padding: 16,
-  },
-  trackerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  trackerTitleSection: {
-    flex: 1,
-  },
-  trackerName: {
-    fontSize: 18,
-    color: '#333',
-    fontFamily: 'Manrope-Bold',
-  },
-  trackerId: {
-    fontSize: 12,
-    color: '#666',
-    fontFamily: 'Manrope-Medium',
-    marginTop: 2,
-  },
-  trackerStatusSection: {
-    alignItems: 'flex-end',
-  },
-  batteryContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  batteryText: {
-    fontSize: 12,
-    fontFamily: 'Manrope-SemiBold',
-    marginLeft: 4,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    fontFamily: 'Manrope-SemiBold',
-  },
-  trackerDetails: {
-    marginBottom: 12,
-  },
-  locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  locationText: {
-    fontSize: 14,
-    color: '#333',
-    fontFamily: 'Manrope-Medium',
-    marginLeft: 6,
-  },
-  timeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  timeText: {
-    fontSize: 12,
-    color: '#666',
-    fontFamily: 'Manrope-Regular',
-    marginLeft: 6,
-  },
-  trackerActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    paddingTop: 12,
-  },
-  actionButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    padding: 12,
+    marginHorizontal: 4,
+    borderRadius: 12,
+    backgroundColor: '#FFF'
   },
-  actionText: {
-    fontSize: 14,
-    color: '#6C63FF',
+  activeFilter: {
+    backgroundColor: '#6C63FF'
+  },
+  filterText: {
+    marginLeft: 8,
     fontFamily: 'Manrope-SemiBold',
-    marginLeft: 6,
+    color: '#6C63FF'
   },
+  activeFilterText: {
+    color: '#FFF'
+  },
+  geofenceCardWrapper: {
+  marginBottom: 16,
+  borderRadius: 16,
+  overflow: 'hidden',
+  elevation: 3,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.12,
+  shadowRadius: 4,
+},
+geofenceCardGradient: {
+  padding: 16,
+  borderRadius: 16,
+},
+geofenceCardContent: {
+  // No backgroundColor here, gradient handles it
+},
+geofenceName: {
+  fontSize: 16,
+  fontFamily: 'Manrope-Bold',
+  color: '#fff',
+},
+geofenceId: {
+  fontSize: 12,
+  color: '#e0e0e0',
+  fontFamily: 'Manrope-Medium',
+},
+geofenceDescription: {
+  fontSize: 14,
+  color: '#f0f0f0',
+  marginBottom: 12,
+  fontFamily: 'Manrope-Regular',
+},
+geofenceStats: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  marginTop: 8,
+},
+statItem: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+statText: {
+  marginLeft: 8,
+  color: '#fff',
+  fontFamily: 'Manrope-Medium',
+},
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 40,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    color: '#333',
-    fontFamily: 'Manrope-Bold',
-    marginTop: 16,
-    marginBottom: 8,
+    padding: 40
   },
   emptyText: {
-    fontSize: 14,
+    marginTop: 16,
     color: '#666',
-    fontFamily: 'Manrope-Medium',
-    textAlign: 'center',
+    fontFamily: 'Manrope-SemiBold',
+    fontSize: 16
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  listContent: {
+    paddingBottom: 15
+  }
 });
 
 export default TrackerScreen;

@@ -1,25 +1,32 @@
 import { useContext, useRef, useEffect } from 'react';
 import { UserContext } from '../context/userContext';
-import { useNavigation } from '@react-navigation/native';
-import { Alert } from 'react-native';
 import { LoadingContext } from '../context/LoadingProvider';
 import { useToast } from '../component/ToastProvider';
+import { API_BASE_URL } from '../config/constant';
 
-// const API_URL = 'http://3.113.180.21:8080'; 
-
-
-const API_URL = 'http://192.168.164.74:8080';
+// List of URLs where loading should NOT be shown
+const SKIP_LOADING_URLS = [
+  '/geofence/locations/update',
+  ,
+];
 
 export const UseApi = () => {
   const { token, logout, setError } = useContext(UserContext);
-  const { setLoading } = useContext(LoadingContext); 
+  const { setLoading } = useContext(LoadingContext);
   const interceptorsAdded = useRef(false);
+  const { showToast } = useToast();
 
-  const {showToast}= useToast();
+  const shouldSkipLoading = (url) => {
+    return SKIP_LOADING_URLS.some(skipUrl => url.startsWith(skipUrl));
+  };
 
   const fetchWithInterceptors = async (url, options = {}) => {
     try {
-        setLoading(true); 
+      // Skip loading for specific URLs
+      if (!shouldSkipLoading(url)) {
+        setLoading(true);
+      }
+
       const headers = {
         'Content-Type': 'application/json',
         ...options.headers,
@@ -29,7 +36,7 @@ export const UseApi = () => {
         headers.Authorization = `Bearer ${token}`;
       }
 
-      const fullUrl = `${API_URL}${url}`;
+      const fullUrl = `${API_BASE_URL}${url}`;
       
       console.log('🔵 [API Request]');
       console.log('➡️ URL:', fullUrl);
@@ -41,44 +48,45 @@ export const UseApi = () => {
       const response = await fetch(fullUrl, {
         ...options,
         headers,
-
       });
 
       console.log('🔵 [API Header]', headers);
-
       console.log('🟢 [API Response]');
       console.log('✅ Status:', response.status);
       
-     
       const data = await response.json();
-      console.log("the apis data ia : ", data);
-      setLoading(false); // Stop loading
+      console.log("API Response Data:", data);
       
-      return data; // Return the parsed JSON data
+      // Skip loading for specific URLs
+      if (!shouldSkipLoading(url)) {
+        setLoading(false);
+      }
+      
+      return data;
     } catch (error) {
-        setLoading(false); // Stop loading
+      // Skip loading for specific URLs
+      if (!shouldSkipLoading(url)) {
+        setLoading(false);
+      }
+
       console.error('❌ [API Error]:', error);
-
-
-      const statusCode = error?.data?.result?.responseCode || error?.status || null;
-
-      console.log("the status code is : ", statusCode);
+      const statusCode = error?.response?.status || error?.status || null;
+      console.log("Status Code:", statusCode);
       
       if (statusCode === 401) {
         console.log('Token expired');
-       showToast({
+        showToast({
           message: 'Session expired. Please log in again.',
           type: 'error',
           duration: 3000,
           position: 'top',
         });
-        logout(); // Call the logout function from UserContext
-        
-       }else if (statusCode === 400) {
+        logout();
+      } else if (statusCode === 400) {
         setError('Bad Request. Please check your input.');
       } else if (statusCode === 404) {
         setError('Resource not found.');
-      } else if (data.data.status === 500) {
+      } else if (statusCode === 500) {
         setError('Server error. Please try again later.');
       } else if (!statusCode) {
         setError('Network error. Please check your connection.');
@@ -91,7 +99,6 @@ export const UseApi = () => {
   useEffect(() => {
     if (!interceptorsAdded.current) {
       interceptorsAdded.current = true;
-      // Global fetch interceptors would be set here if needed
     }
   }, []);
 

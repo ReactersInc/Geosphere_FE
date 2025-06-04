@@ -1,22 +1,24 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
-import BottomTabNavigator from './BottomTabNavigator';
-import { UserContext } from '../context/userContext';
-import SplashScreen from '../screens/SplashScreen';
-import { LoadingContext } from '../context/LoadingProvider';
-import LoginScreen from '../screens/Login';
-import RegisterScreen from '../screens/Register';
-import HomeScreen from '../screens/HomeScreen';
-import LandingScreen from '../screens/LandingScreen';
-import LiveMapScreen from '../screens/LiveMapScreen';
-import CreateGeofenceScreen from '../screens/CreateGeofenceScreen';
+import React, { useContext, useEffect, useState } from "react";
+import { createStackNavigator } from "@react-navigation/stack";
+import BottomTabNavigator from "./BottomTabNavigator";
+import { UserContext } from "../context/userContext";
+import SplashScreen from "../screens/SplashScreen";
+import { LoadingContext } from "../context/LoadingProvider";
+import LoginScreen from "../screens/Login";
+import RegisterScreen from "../screens/Register";
+import HomeScreen from "../screens/HomeScreen";
+import LandingScreen from "../screens/LandingScreen";
+import LiveMapScreen from "../screens/LiveMapScreen";
+import CreateGeofenceScreen from "../screens/CreateGeofenceScreen";
 
-import GeoZoneScreen from '../screens/GeoZoneScreen';
-import UserDiscoveryScreen from '../screens/UserDiscoveryScreen';
-import AddEntityToGeofenceScreen from '../screens/AddEntityToGeofenceScreen';
-import RequestDetailsScreen from '../screens/RequestDetailsScreen';
-import AllRequestsScreen from '../screens/AllRequestsScreen';
-import TrackedGeofenceScreen from '../screens/TrackedGeofenceScreen';
+import GeoZoneScreen from "../screens/GeoZoneScreen";
+import UserDiscoveryScreen from "../screens/UserDiscoveryScreen";
+import AddEntityToGeofenceScreen from "../screens/AddEntityToGeofenceScreen";
+import RequestDetailsScreen from "../screens/RequestDetailsScreen";
+import AllRequestsScreen from "../screens/AllRequestsScreen";
+import TrackedGeofenceScreen from "../screens/TrackedGeofenceScreen";
+import QRScannerScreen from "../screens/QRScannerScreen";
+import HardwareDevicesScreen from "../screens/HardwareDeviceScreen";
 
 const Stack = createStackNavigator();
 
@@ -42,27 +44,48 @@ const MainStackNavigator = () => {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!isAuthenticated ? (
         <>
-          
           {/* <Stack.Screen name="landing" component={LandingScreen} /> */}
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
         </>
       ) : (
-        
         <>
           <Stack.Screen name="MainApp" component={BottomTabNavigator} />
           <Stack.Screen name="HomeScreen" component={HomeScreen} />
           <Stack.Screen name="LiveMapScreen" component={LiveMapScreen} />
-          <Stack.Screen name="CreateGeofenceScreen" component={CreateGeofenceScreen} />
-          
+          <Stack.Screen
+            name="CreateGeofenceScreen"
+            component={CreateGeofenceScreen}
+          />
+
           <Stack.Screen name="GeoZoneScreen" component={GeoZoneScreen} />
-          <Stack.Screen name="UserDiscoveryScreen" component={UserDiscoveryScreen} />
-          <Stack.Screen name="AddEntityToGeofenceScreen" component={AddEntityToGeofenceScreen} />
-          <Stack.Screen name="RequestDetailsScreen" component={RequestDetailsScreen} />
-          <Stack.Screen name="AllRequestsScreen" component={AllRequestsScreen} />
-          <Stack.Screen name="TrackedGeofenceScreen" component={TrackedGeofenceScreen } />
+          <Stack.Screen
+            name="UserDiscoveryScreen"
+            component={UserDiscoveryScreen}
+          />
+          <Stack.Screen
+            name="AddEntityToGeofenceScreen"
+            component={AddEntityToGeofenceScreen}
+          />
+          <Stack.Screen
+            name="RequestDetailsScreen"
+            component={RequestDetailsScreen}
+          />
+          <Stack.Screen
+            name="AllRequestsScreen"
+            component={AllRequestsScreen}
+          />
+          <Stack.Screen
+            name="TrackedGeofenceScreen"
+            component={TrackedGeofenceScreen}
+          />
+          <Stack.Screen name="QRScanner" component={QRScannerScreen} />
+          <Stack.Screen
+            name="HardwareDevices"
+            component={HardwareDevicesScreen}
+            options={{ title: "My Devices" }}
+          />
         </>
-        
       )}
     </Stack.Navigator>
   );

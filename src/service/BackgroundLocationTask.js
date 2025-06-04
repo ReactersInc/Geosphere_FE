@@ -1,6 +1,7 @@
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../config/constant';
 
 const LOCATION_TASK_NAME = 'background-location-task';
 
@@ -15,17 +16,17 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
     const { locations } = data;
     const location = locations[0];
     
-    if (location) {
-      // Send location to backend
-      await sendLocationToBackend({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        accuracy: location.coords.accuracy,
-        speed: location.coords.speed || 0,
-        heading: location.coords.heading || 0,
-        timestamp: new Date(location.timestamp).toISOString()
-      });
-    }
+    // if (location) {
+    //   // Send location to backend
+    //   await sendLocationToBackend({
+    //     latitude: location.coords.latitude,
+    //     longitude: location.coords.longitude,
+    //     accuracy: location.coords.accuracy,
+    //     speed: location.coords.speed || 0,
+    //     heading: location.coords.heading || 0,
+    //     timestamp: new Date(location.timestamp).toISOString()
+    //   });
+    // }
   }
 });
 
@@ -42,7 +43,7 @@ const sendLocationToBackend = async (locationData) => {
     // Replace with your actual backend URL
     const baseURL = 'http://192.168.164.74:8080'; 
     
-    const response = await fetch(`${baseURL}/geofence/locations/update`, {
+    const response = await fetch(`${API_BASE_URL}/geofence/locations/update`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

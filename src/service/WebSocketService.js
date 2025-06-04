@@ -1,6 +1,7 @@
 // services/WebSocketService.js
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { API_BASE_URL } from '../config/constant';
 
 class WebSocketService {
   static client = null;
@@ -24,7 +25,7 @@ class WebSocketService {
 
     try {
       // Create SockJS connection
-      const socket = new SockJS('http://192.168.164.74:8080/ws');
+      const socket = new SockJS(`${API_BASE_URL}/ws`);
       
       this.client = new Client({
         webSocketFactory: () => socket,

@@ -752,146 +752,26 @@ const ProfileScreen = () => {
 
           {!isEditMode && (
             <>
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <CustomText style={styles.sectionTitle}>
-                    Zones Tracking You
-                  </CustomText>
-                  <TouchableOpacity
-                    onPress={() =>
-                      navigation.navigate("Geozone", {
-                        geofence: trackers.map((tracker) => ({
-                          id: tracker.id,
-                          name: tracker.name,
-                          description: tracker.description,
-                        })),
-                      })
-                    }
-                  >
-                    <CustomText style={styles.seeAll}>Manage</CustomText>
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.sectionContent}>
-                  {trackers.length > 0 ? (
-                    trackers.map((tracker) => (
-                      <TrackerCard key={tracker.id} tracker={tracker} />
-                    ))
-                  ) : (
-                    <View style={styles.emptyState}>
-                      <Icon
-                        name="account-multiple-outline"
-                        size={40}
-                        color="#ccc"
-                      />
-                      <CustomText style={styles.emptyStateText}>
-                        No one is tracking you yet
-                      </CustomText>
-                      <CustomText style={styles.emptyStateSubtext}>
-                        Share your location with family and friends to get
-                        started
-                      </CustomText>
-                    </View>
-                  )}
-                </View>
-              </View>
+              // Add new section in ProfileScreen's render method
+<View style={styles.section}>
+  <View style={styles.sectionHeader}>
+    <CustomText style={styles.sectionTitle}>Linked Devices</CustomText>
+    <TouchableOpacity onPress={() => navigation.navigate('HardwareDevices')}>
+      <CustomText style={styles.seeAll}>View All</CustomText>
+    </TouchableOpacity>
+  </View>
+  <View style={styles.sectionContent}>
+    <TouchableOpacity 
+      style={styles.addDeviceCard}
+      onPress={() => navigation.navigate('QRScanner')}>
+      <Icon name="plus" size={24} color="#6C63FF" />
+      <CustomText style={styles.addDeviceText}>Add New Device</CustomText>
+    </TouchableOpacity>
+  </View>
+</View>
 
-              {/* Geofence Summary Section */}
-              {profile?.userGeofenceDetails && (
-                <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                    <CustomText style={styles.sectionTitle}>
-                      Zones Tracking You
-                    </CustomText>
-                    <TouchableOpacity
-                      onPress={() => navigation.navigate("Geofences")}
-                    >
-                      <CustomText style={styles.seeAll}>View All</CustomText>
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.sectionContent}>
-                    <View style={styles.summaryCard}>
-                      <View style={styles.summaryRow}>
-                        <View style={styles.summaryItem}>
-                          <CustomText style={styles.summaryNumber}>
-                            {profile.userGeofenceDetails.totalGeofence}
-                          </CustomText>
-                          <CustomText style={styles.summaryLabel}>
-                            Total Geofences
-                          </CustomText>
-                        </View>
-                        <View style={styles.summaryItem}>
-                          <CustomText style={styles.summaryNumber}>
-                            {profile.userGeofenceDetails.totalGeofenceInUse}
-                          </CustomText>
-                          <CustomText style={styles.summaryLabel}>
-                            Active
-                          </CustomText>
-                        </View>
-                      </View>
-                      <View style={styles.summaryRow}>
-                        <View style={styles.summaryItem}>
-                          <CustomText style={styles.summaryNumber}>
-                            {profile.userGeofenceDetails.totalUsersInGeofence}
-                          </CustomText>
-                          <CustomText style={styles.summaryLabel}>
-                            Users in Geofence
-                          </CustomText>
-                        </View>
-                        <View style={styles.summaryItem}>
-                          <CustomText style={styles.summaryNumber}>
-                            {profile.userGeofenceDetails.totalConnections}
-                          </CustomText>
-                          <CustomText style={styles.summaryLabel}>
-                            Connections
-                          </CustomText>
-                        </View>
-                      </View>
 
-                      {/* Pending Requests */}
-                      {(profile.userGeofenceDetails.pendingGeofenceRequests >
-                        0 ||
-                        profile.userGeofenceDetails.pendingConnectionRequests >
-                          0) && (
-                        <View style={styles.pendingSection}>
-                          <CustomText style={styles.pendingTitle}>
-                            Pending Requests
-                          </CustomText>
-                          <View style={styles.pendingRow}>
-                            <View style={styles.pendingItem}>
-                              <Icon
-                                name="map-marker-plus"
-                                size={16}
-                                color="#FF9800"
-                              />
-                              <CustomText style={styles.pendingText}>
-                                {
-                                  profile.userGeofenceDetails
-                                    .pendingGeofenceRequests
-                                }{" "}
-                                Geofence
-                              </CustomText>
-                            </View>
-                            <View style={styles.pendingItem}>
-                              <Icon
-                                name="account-plus"
-                                size={16}
-                                color="#FF9800"
-                              />
-                              <CustomText style={styles.pendingText}>
-                                {
-                                  profile.userGeofenceDetails
-                                    .pendingConnectionRequests
-                                }{" "}
-                                Connection
-                              </CustomText>
-                            </View>
-                          </View>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                </View>
-              )}
+              
 
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
@@ -988,6 +868,19 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 24,
   },
+  addDeviceCard: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#fff',
+  padding: 16,
+  borderRadius: 12,
+  elevation: 2
+},
+addDeviceText: {
+  color: '#6C63FF',
+  marginLeft: 12,
+  fontSize: 16
+},
   headerGradient: {
     paddingTop: 40,
     paddingBottom: 60,
