@@ -385,7 +385,7 @@ const ProfileScreen = () => {
             <View style={styles.profileImageContainer}>
               <Image
                 source={{
-                  uri: profile.photoUrl || "https://via.placeholder.com/100",
+                 uri: profile?.photoUrl ?? '../../assets/images/bro.png' ?? "https://via.placeholder.com/100"
                 }}
                 style={styles.profileImage}
               />
@@ -420,7 +420,7 @@ const ProfileScreen = () => {
             <View>
               <CustomText style={styles.infoLabel}>Phone</CustomText>
               <CustomText style={styles.infoValue}>
-                {profile.phone || "Not provided"}
+                {profile.phone || "6207683772"}
               </CustomText>
             </View>
           </View>
@@ -435,7 +435,7 @@ const ProfileScreen = () => {
             <View>
               <CustomText style={styles.infoLabel}>Address</CustomText>
               <CustomText style={styles.infoValue} numberOfLines={1}>
-                {profile.address || "Not provided"}
+                {profile.address || "Tezpur University, Tezpur"}
               </CustomText>
             </View>
           </View>
@@ -452,7 +452,7 @@ const ProfileScreen = () => {
                 Emergency Contact
               </CustomText>
               <CustomText style={styles.infoValue} numberOfLines={1}>
-                {profile.emergencyContact || "Not provided"}
+                {profile.emergencyContact || "9631277954"}
               </CustomText>
             </View>
           </View>

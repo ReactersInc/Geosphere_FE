@@ -49,10 +49,10 @@ const App = () => {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+              <ToastProvider>
       <UserProvider>
         <LoadingProvider>
         
-              <ToastProvider>
           <SafeAreaView style={{ flex: 1 }}>
             <ConfirmationProvider>
                 <StatusBar backgroundColor="#F8F9FB" barStyle="dark-content" />
@@ -60,10 +60,10 @@ const App = () => {
                 <GlobalLoader />
             </ConfirmationProvider>
           </SafeAreaView>
-              </ToastProvider>
         
         </LoadingProvider>
       </UserProvider>
+              </ToastProvider>
     </GestureHandlerRootView>
   );
 };

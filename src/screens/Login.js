@@ -10,7 +10,8 @@ import {
   Alert,
   SafeAreaView,
   StatusBar,
-  Platform
+  Platform,
+  ScrollView
 } from 'react-native';
 import { CommonActions, StackActions } from '@react-navigation/native';
 import { RFPercentage, RFValue } from 'react-native-responsive-fontsize';
@@ -24,18 +25,22 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import DeviceInfo, { getDevice } from 'react-native-device-info';
 import {API_BASE_URL} from '../config/constant';
+import { useToast } from '../component/ToastProvider';
+import { useConfirmation } from '../component/ConfirmationProvider';
 
 const { width, height } = Dimensions.get('window');
 
 const Login = ({ navigation }) => {
-  const [email, setEmail] = useState('raivivek0902@gmail.com');
-  const [password, setPassword] = useState('1234');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   
   const { login, deviceId, fcmToken } = useUser();
   const { fetchProfile } = useProfile(); // Add this line
   const { get, post } = UseApi();
   const { loading } = useContext(LoadingContext);
+  const {showToast}= useToast();
+  const {showConfirmation}= useConfirmation();
 
   const handleLogin = async () => {
     try {
@@ -62,7 +67,14 @@ const Login = ({ navigation }) => {
       // No need to manually call fetchProfile here as it's handled in useEffect
 
     } catch (error) {
-      Alert.alert('Error', 'Something went wrong. Please try again later.');
+      showToast({
+        message: 'Login failed. Please check your credentials.',
+        type: 'error',
+        duration: 3000,
+        position: 'bottom',
+        icon: 'close-circle',
+      });
+      console.error('Login error:', error);
     }
   };
 
@@ -101,6 +113,13 @@ const Login = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <ScrollView 
+        contentContainerStyle={{ flexGrow: 1 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+
+      
       <StatusBar barStyle="light-content" backgroundColor="#6C63FF" />
       
       <LinearGradient
@@ -189,6 +208,7 @@ const Login = ({ navigation }) => {
           </TouchableOpacity>
         </View>
       </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };

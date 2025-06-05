@@ -18,12 +18,16 @@ import { LinearGradient } from "expo-linear-gradient";
 import CustomText from "../component/CustomText";
 import { UseApi } from "../hooks/UseApi";
 import { BlurView } from "expo-blur";
+import { useToast } from "../component/ToastProvider";
+import { useConfirmation } from "../component/ConfirmationProvider";
 
 const AddEntityToGeofenceScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { geofenceId, geofenceName } = route.params;
   const { post } = UseApi();
+  const {showToast} = useToast();
+  const {showConfirmation} = useConfirmation();
   
   const [activeTab, setActiveTab] = useState("people"); // "people" or "devices"
   const [email, setEmail] = useState("");
@@ -44,7 +48,12 @@ const AddEntityToGeofenceScreen = () => {
 
   const handleAddPerson = async () => {
     if (!email.trim()) {
-      Alert.alert("Error", "Please enter a valid email address");
+      showToast({
+        type: "error",
+        message: "Please enter a valid email address",
+        position: "top",
+        icon: "alert-circle"
+      });
       return;
     }
     
@@ -71,13 +80,37 @@ const AddEntityToGeofenceScreen = () => {
         ]);
         
         setEmail("");
-        Alert.alert("Success", "Person has been added to the geofence");
+        showToast({
+          type: "success",
+          message: "Person added to geofence successfully",
+          position: "top",
+          icon: "checkmark-circle"
+        });
+        
       }if(response?.result?.responseCode == 100037){
-        Alert.alert("Error", "This email is already added to the geofence");
-      } 
+        showToast({
+          type: "error",
+          message: "This person is already added to the geofence",
+          position: "top",
+          icon: "alert-circle"
+        });
+      }if(response?.result?.responseCode != 200 && response?.result?.responseCode != 201 && response?.result?.responseCode != 100037){ 
+        showToast({
+          type: "error",
+          message: "Failed to add person to geofence",
+          position: "top",
+          icon: "alert-circle"
+        });
+      }
+
     } catch (error) {
       console.error("Error adding person to geofence:", error);
-      Alert.alert("Error", "Failed to add person to geofence. Please try again.");
+      showToast({
+        type: "error",
+        message: "An error occurred while adding person to geofence",
+        position: "top",
+        icon: "alert-circle"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -85,12 +118,24 @@ const AddEntityToGeofenceScreen = () => {
   
   const handleAddDevice = async () => {
     if (!deviceId.trim()) {
-      Alert.alert("Error", "Please enter a valid device ID");
+      showToast({
+        type: "error",
+        message: "Please enter a valid device ID",
+        position: "top",
+        icon: "alert-circle"
+      });
+
       return;
     }
     
     // This is a placeholder for future implementation
-    Alert.alert("Coming Soon", "Device addition will be implemented soon");
+   showToast({
+
+      type: "info",
+      message: "Device addition is not implemented yet",
+      position: "top",
+      icon: "information"
+    });
     
     // The actual implementation would be similar to handleAddPerson
     // but with the appropriate endpoint and payload

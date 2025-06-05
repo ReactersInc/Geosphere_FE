@@ -60,7 +60,7 @@ const RequestDetailsScreen = () => {
                     Alert.alert(
                       "Success",
                       "Request accepted and location tracking enabled!",
-                      [{ text: "OK", onPress: () => navigation.navigate('AllRequestsScreen', { refresh: true }) }]
+                      [{ text: "OK", onPress: () => navigation.replace('AllRequestsScreen', { refresh: true }) }]
                     );
                   }
                 }
@@ -72,7 +72,7 @@ const RequestDetailsScreen = () => {
           Alert.alert(
             "Request Accepted",
             "Location tracking has been enabled successfully!",
-            [{ text: "OK", onPress: () => navigation.navigate('AllRequestsScreen', { refresh: true }) }]
+            [{ text: "OK", onPress: () => navigation.replace('AllRequestsScreen', { refresh: true }) }]
           );
         }
       } else {
@@ -100,7 +100,7 @@ const RequestDetailsScreen = () => {
           { text: "OK", onPress: () => {
             if (result.success) {
               // Navigate back and refresh the list
-              navigation.navigate('AllRequestsScreen', { refresh: true });
+              navigation.replace('AllRequestsScreen', { refresh: true });
             }
           }}
         ]

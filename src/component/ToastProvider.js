@@ -16,9 +16,10 @@ export const ToastProvider = ({ children }) => {
       duration = 3000,
       position = 'bottom',
       icon,
+      onDismiss,
     } = options;
 
-    setToast({ message, type, duration, position, icon });
+    setToast({ message, type, duration, position, icon, onDismiss });
 
     Animated.timing(animation, {
       toValue: 1,
@@ -39,9 +40,13 @@ export const ToastProvider = ({ children }) => {
       duration: 300,
       useNativeDriver: true,
     }).start(() => {
+      // Call onDismiss callback if it exists
+      if (toast?.onDismiss) {
+        toast.onDismiss();
+      }
       setToast(null);
     });
-  }, [animation]);
+  }, [animation, toast]);
 
   const getBackgroundColor = (type) => {
     switch (type) {

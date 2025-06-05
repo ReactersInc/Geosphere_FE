@@ -199,7 +199,7 @@ function getGeofenceGradient(index) {
           <View style={styles.emptyContainer}>
             <Icon name="map-marker-off" size={48} color="#CCC" />
             <CustomText style={styles.emptyText}>
-              {searchQuery ? 'No matching geofences found' : 'No geofences available'}
+              {searchQuery ? 'No matching geofences found' : 'No Zone is tracking you'}
             </CustomText>
           </View>
         }

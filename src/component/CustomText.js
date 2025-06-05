@@ -36,7 +36,7 @@ const CustomText = ({
 
 const styles = StyleSheet.create({
   defaultText: {
-    fontSize: RFValue(14),
+    fontSize: 14,
     color: '#000000', // default text color
   },
 });

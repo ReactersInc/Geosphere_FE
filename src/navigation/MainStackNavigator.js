@@ -19,6 +19,7 @@ import AllRequestsScreen from "../screens/AllRequestsScreen";
 import TrackedGeofenceScreen from "../screens/TrackedGeofenceScreen";
 import QRScannerScreen from "../screens/QRScannerScreen";
 import HardwareDevicesScreen from "../screens/HardwareDeviceScreen";
+import PersonalDetailsScreen from "../screens/PersonDetailsScreen";
 
 const Stack = createStackNavigator();
 
@@ -84,6 +85,10 @@ const MainStackNavigator = () => {
             name="HardwareDevices"
             component={HardwareDevicesScreen}
             options={{ title: "My Devices" }}
+          />
+          <Stack.Screen
+            name="PersonDetails"
+            component={PersonalDetailsScreen}
           />
         </>
       )}

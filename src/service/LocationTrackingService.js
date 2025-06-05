@@ -123,8 +123,8 @@ class LocationTrackingService {
           BACKGROUND_LOCATION_TASK,
           {
             accuracy: Location.Accuracy.Balanced,
-            timeInterval: 30000, // Every 30 seconds in background
-            distanceInterval: 10, // Every 10 meters in background
+            timeInterval: 5000, // Every 30 seconds in background
+            distanceInterval: 1, // Every 10 meters in background
             foregroundService: {
               notificationTitle: 'Location Tracking',
               notificationBody: 'App is tracking your location in the background',
